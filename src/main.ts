@@ -131,12 +131,12 @@ const renderAdminDashboard = async () => {
         header.className = "fixed top-0 left-0 w-full bg-white border-b border-slate-100 z-50 shadow-sm";
         header.innerHTML = `
             <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
-                <nav class="flex items-center gap-8">
+                <nav class="flex items-center gap-8 h-full">
                     <span class="font-black text-slate-900 text-xl tracking-tighter mr-4">ADMIN</span>
-                    <button onclick="changeAdminTab('inicio')" class="text-sm font-bold text-slate-500 hover:text-blue-600 transition-all">Início</button>
-                    <button onclick="changeAdminTab('agenda')" class="text-sm font-bold text-slate-500 hover:text-blue-600 transition-all">Agenda</button>
-                    <button onclick="changeAdminTab('inscricoes')" class="text-sm font-bold text-slate-500 hover:text-blue-600 transition-all">Inscrições</button>
-                    <button onclick="changeAdminTab('historico')" class="text-sm font-bold text-slate-500 hover:text-blue-600 transition-all">Histórico</button>
+                    <button onclick="changeAdminTab('inicio')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Início</button>
+                    <button onclick="changeAdminTab('agenda')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Agenda</button>
+                    <button onclick="changeAdminTab('inscricoes')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Inscrições</button>
+                    <button onclick="changeAdminTab('historico')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Histórico</button>
                 </nav>
                 <div class="flex items-center gap-4">
                     <span class="text-xs font-bold text-slate-400">Olá Administrador</span>
@@ -162,6 +162,40 @@ const renderAdminDashboard = async () => {
 // --- CONTROLE DE ABAS ---
 (window as any).changeAdminTab = (tab: string) => {
     const container = document.querySelector<HTMLDivElement>('#events-container')!;
+    
+    // --- LÓGICA DE ESTILO DOS BOTÕES ---
+    // 1. Seleciona todos os botões do menu no header
+    const menuButtons = document.querySelectorAll('header nav button');
+    
+    menuButtons.forEach(btn => {
+        // Remove as classes de ativo e volta para o padrão (slate-500)
+        btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        btn.classList.add('text-slate-500');
+        
+        // Verifica se o texto do botão ou o atributo de data corresponde à aba (ajuste simples)
+        // Dica: Se quiser ser mais preciso, adicione data-tab="agenda" no HTML do botão
+        if (btn.textContent?.toLowerCase().trim() === tab.toLowerCase().trim() || 
+           (tab === 'inicio' && btn.textContent?.toLowerCase() === 'início')) {
+            btn.classList.remove('text-slate-500');
+            btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        }
+        if (btn.textContent?.toLowerCase().trim() === tab.toLowerCase().trim() || 
+           (tab === 'agenda' && btn.textContent?.toLowerCase() === 'agenda')) {
+            btn.classList.remove('text-slate-500');
+            btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        }
+        if (btn.textContent?.toLowerCase().trim() === tab.toLowerCase().trim() || 
+           (tab === 'inscricoes' && btn.textContent?.toLowerCase() === 'inscrições')) {
+            btn.classList.remove('text-slate-500');
+            btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        }
+        if (btn.textContent?.toLowerCase().trim() === tab.toLowerCase().trim() || 
+           (tab === 'historico' && btn.textContent?.toLowerCase() === 'histórico')) {
+            btn.classList.remove('text-slate-500');
+            btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        }
+        
+    });
     
     switch (tab) {
         case 'inicio':
