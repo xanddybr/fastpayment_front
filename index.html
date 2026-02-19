@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FastPayment | Mistura de Luz</title>
+  </head>
+  <body class="bg-black text-slate-200 ...">
+    
+    <div id="app" class="min-h-screen p-4 md:p-8">
+      <main class="w-full max-w-6xl mx-auto">
+        
+        <section id="login" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6 my-20">
+          <div class="text-center">
+            <h1 class="text-3xl font-black text-slate-900">Admin Login</h1>
+            <p class="text-slate-500 mt-2">Acesse o painel de controle</p>
+          </div>
+          <div class="space-y-4">
+            <input type="email" id="admin-email" placeholder="E-mail" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none">
+            <input type="password" id="admin-password" placeholder="Senha" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none">
+            <button onclick="makeLogin()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-slate-800 transition-all">
+              Entrar no Painel
+            </button>
+          </div>
+        </section>
+
+        <section id="step-selection" class="hidden space-y-8">
+          <header class="text-center mb-10">
+            <h1 class="text-4xl font-black text-slate-900 text-violet-400 tracking-tight">Agenda - Mistura de Luz</h1>
+            <p class="text-slate-500 mt-2 text-lg bg-violet-600/20 text-violet-400">Selecione o evento desejado para prosseguir</p>
+          </header>
+          <div id="events-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full text-center py-10 text-slate-400 font-medium">
+              Buscando horários disponíveis na agenda...
+            </div>
+          </div>
+        </section>
+
+        <section id="step-1" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6">
+          <h2 class="text-2xl font-bold text-center text-slate-800">Identificação</h2>
+          <div class="space-y-4">
+            <input type="text" id="user-name" placeholder="Nome Completo" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none">
+            <input type="tel" id="user-phone" placeholder="WhatsApp (DDD + Número)" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none">
+            <input type="email" id="email" placeholder="Seu melhor e-mail" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none">
+            
+            <button id="btn-send-otp" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-blue-600 transition-all shadow-lg">
+              Validar E-mail e Prosseguir →
+            </button>
+          </div>
+          <div id="message" class="hidden text-center text-sm font-medium p-3 rounded-lg"></div>
+        </section>
+
+        <section id="step-2" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6">
+          <h2 class="text-2xl font-bold text-center text-slate-800">Validar Código</h2>
+          <p class="text-center text-slate-500 text-sm">Insira o código de 6 dígitos enviado ao seu e-mail</p>
+          <div class="space-y-4">
+            <input type="text" id="otp-code" maxlength="6" placeholder="000000" class="w-full text-center text-4xl font-black border rounded-xl p-3 tracking-widest focus:ring-2 focus:ring-blue-500 outline-none">
+            
+            <button id="btn-verify-otp" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg">
+              Verificar Código
+            </button>
+            
+            <button id="btn-back" class="w-full text-slate-400 hover:text-slate-600 text-sm font-medium transition-colors" onclick="window.location.reload()">
+              ← Voltar para a Agenda
+            </button>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+    <div id="modal-crud" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 id="modal-title" class="text-lg font-black text-slate-800 uppercase tracking-tight">Gerenciar</h3>
+              <button onclick="closeCrudModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+          </div>
+          
+          <div class="p-6 space-y-4">
+              <div>
+                  <label class="text-[10px] font-bold text-slate-400 ml-1 uppercase">Novo Registro (Nome)</label>
+                  <input type="text" id="modal-input-name" class="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="Digite o nome...">
+              </div>
+
+              <div id="field-price" class="hidden">
+                  <label class="text-[10px] font-bold text-slate-400 ml-1 uppercase">Preço (R$)</label>
+                  <input type="number" id="modal-input-price" class="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.00">
+              </div>
+
+              <hr class="border-slate-100">
+
+              <div>
+                  <label class="text-[10px] font-bold text-slate-400 ml-1 uppercase">Registros Atuais (Selecione para Excluir)</label>
+                  <div class="flex gap-2">
+                      <select id="modal-select-list" class="flex-1 border rounded-xl p-3 text-sm outline-none bg-slate-50">
+                          <option value="">Carregando...</option>
+                      </select>
+                      <button id="btn-modal-delete" onclick="deleteCrudItem()" class="bg-red-50 text-red-600 px-4 rounded-xl hover:bg-red-600 hover:text-white transition-all font-bold text-xs">
+                          Excluir
+                      </button>
+                  </div>
+              </div>
+          </div>
+
+          <div class="p-6 bg-slate-50 flex gap-3">
+              <button onclick="closeCrudModal()" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">Cancelar</button>
+              <button id="btn-modal-save" onclick="saveCrudItem()" class="flex-1 py-3 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">Adicionar</button>
+          </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
