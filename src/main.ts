@@ -126,7 +126,10 @@ const renderAdminDashboard = async () => {
     const container = document.querySelector<HTMLDivElement>('#events-container')!;
     const header = sections.selection.querySelector('header');
 
-    // 1. MENU HORIZONTAL SUPERIOR
+    // Recupera o nome do usuário que salvamos no login
+    // Se não houver nada, usamos "Administrador" como fallback
+    const adminName = localStorage.getItem('admin_full_name') || 'Administrador';
+
     if (header) {
         header.className = "fixed top-0 left-0 w-full bg-white border-b border-slate-100 z-50 shadow-sm";
         header.innerHTML = `
@@ -139,20 +142,17 @@ const renderAdminDashboard = async () => {
                     <button onclick="changeAdminTab('historico')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Histórico</button>
                 </nav>
                 <div class="flex items-center gap-4">
-                    <span class="text-xs font-bold text-slate-400">Olá Administrador</span>
+                    <span class="text-xs font-bold text-slate-400">Olá, ${adminName}</span>
                     <button onclick="makeLogout()" class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all">Sair</button>
                 </div>
             </div>
         `;
     }
 
-    // Ajusta o container para não ficar sob o menu fixo
     container.className = "max-w-7xl mx-auto px-6 pt-24 pb-10";
     
-    // Inicia na aba de Boas-vindas
     (window as any).changeAdminTab('inicio');
-
-    };
+};
 
     (window as any).closeCrudModal = () => {
         const modal = document.querySelector<HTMLDivElement>('#modal-crud');
@@ -434,8 +434,15 @@ async function refreshModalList() {
         credentials: 'include',
         body: JSON.stringify({ email, password })
     });
-    if (res.ok) window.location.href = '/agenda/admin';
-    else alert("Erro no login.");
+
+    if (res.ok) {
+        const data = await res.json();
+        // Salva o nome vindo da tabela persons (objeto user.full_name)
+        localStorage.setItem('admin_full_name', data.user.full_name);
+        window.location.href = '/agenda/admin';
+    } else {
+        alert("Erro no login.");
+    }
 };
 
 (window as any).deleteSchedule = async (id: number) => {
