@@ -199,10 +199,11 @@ const renderAdminDashboard = async () => {
     
     switch (tab) {
         case 'inicio':
+            const currentName = localStorage.getItem('admin_full_name') || 'Seu nome de usuário não foi carregado!';
             container.innerHTML = `
                 <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
                     <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-4xl mb-6">👋</div>
-                    <h1 class="text-4xl font-black text-slate-900 mb-2">Bem-vindo, Administrador!</h1>
+                    <h1 class="text-4xl font-black text-slate-900 mb-2">Bem-vindo, ${currentName}!</h1>
                     <p class="text-slate-500 max-w-md">Selecione uma opção no menu superior para começar a gerenciar sua plataforma.</p>
                 </div>
             `;
@@ -421,7 +422,20 @@ async function refreshModalList() {
 };
 
 (window as any).makeLogout = async () => {
-    await fetch('http://localhost:8080/logout', { method: 'POST', credentials: 'include' });
+    try {
+        // Tenta avisar o servidor para matar a sessão
+        await fetch('http://localhost:8080/logout', { 
+            method: 'POST', 
+            credentials: 'include' 
+        });
+    } catch (error) {
+        console.error("Erro ao comunicar logout com o servidor", error);
+    }
+
+    // LIMPEZA OBRIGATÓRIA:
+    localStorage.removeItem('admin_full_name'); // Remove o nome que aparece no "Olá"
+    
+    // REDIRECIONAMENTO:
     window.location.href = '/agenda/login';
 };
 
