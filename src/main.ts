@@ -392,25 +392,51 @@ const setupFormListener = () => {
 };
 
 // --- MODAL CRUD ---
+// 1. Garanta que a variável de controle mude ANTES de buscar os dados
 (window as any).openCrudModal = async (target: 'events' | 'units' | 'event-types') => {
-    currentTarget = target;
+    // Atualiza a variável global que controla o que estamos editando
+    currentTarget = target; 
+
     const modal = document.querySelector<HTMLDivElement>('#modal-crud')!;
-    document.querySelector<HTMLHeadingElement>('#modal-title')!.innerText = `Gerenciar ${target}`;
-    document.querySelector<HTMLDivElement>('#field-price')!.classList.toggle('hidden', target !== 'events');
+    const title = document.querySelector<HTMLHeadingElement>('#modal-title')!;
+    const priceField = document.querySelector<HTMLDivElement>('#field-price')!;
+
+    // Ajusta visualmente o modal conforme o alvo
+    title.innerText = `Gerenciar ${target === 'events' ? 'Eventos' : target === 'units' ? 'Unidades' : 'Tipos de Evento'}`;
+    
+    // Só mostra o campo de preço se for Evento
+    priceField.classList.toggle('hidden', target !== 'events');
+
+    // Limpa o select antes de carregar novos dados para evitar confusão visual
+    const select = document.querySelector<HTMLSelectElement>('#modal-select-list')!;
+    select.innerHTML = '<option value="">Carregando...</option>';
+
     modal.classList.remove('hidden');
-    refreshModalList();
+
+    // Chama a atualização passando o alvo correto
+    await refreshModalList();
 };
 
+// 2. Ajuste a função de carregamento para usar a variável atualizada
 async function refreshModalList() {
-    const res = await fetch(`http://localhost:8080/${currentTarget}`, { credentials: 'include' });
-    const data = await res.json();
-    const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
-    if (select) {
-        select.innerHTML = '<option value="">Selecione para excluir...</option>' + 
-            data.map((item: any) => `<option value="${item.id}">${item.name || item.nome}</option>`).join('');
+    // Importante: a URL deve usar o currentTarget que acabamos de definir
+    const url = `http://localhost:8080/${currentTarget}`;
+    
+    try {
+        const res = await fetch(url, { credentials: 'include' });
+        const data = await res.json();
+        
+        const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
+        if (select) {
+            select.innerHTML = '<option value="">Selecione para excluir...</option>' + 
+                data.map((item: any) => `
+                    <option value="${item.id}">${item.name || item.nome}</option>
+                `).join('');
+        }
+    } catch (error) {
+        console.error("Erro ao carregar lista do modal:", error);
     }
-    loadFormOptions();
-}
+}   
 
 // --- AUTH ACTIONS ---
 (window as any).selectEvent = (id: number, name: string) => {
@@ -495,11 +521,14 @@ async function refreshModalList() {
 };
 
 // Função para EXCLUIR item do CRUD
+// Função para EXCLUIR item do CRUD corrigida
+// Função para EXCLUIR item do CRUD (Atualizada com loadFormOptions)
 (window as any).deleteCrudItem = async () => {
-    const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
-    const id = select?.value;
+    const selectElement = document.querySelector('#modal-select-list') as HTMLSelectElement;
+    const id = selectElement.value;
 
     if (!id) return alert("Selecione um item para excluir");
+
     if (!confirm("Tem certeza que deseja excluir este item?")) return;
 
     try {
@@ -508,12 +537,66 @@ async function refreshModalList() {
             credentials: 'include'
         });
 
+        const responseText = await res.text();
+        let data;
+
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Servidor retornou algo que não é JSON:", responseText);
+            alert("Erro inesperado no servidor.");
+            return;
+        }
+
         if (res.ok) {
-            refreshModalList();
-            alert("Excluído com sucesso!");
+            alert(data.message || "Excluído com sucesso!");
+            
+            // 1. Atualiza a lista dentro do próprio modal (o select de exclusão)
+            await refreshModalList(); 
+
+            // 2. ATUALIZA OS SELECTS DO FORMULÁRIO PRINCIPAL (O que faltava na deleção!)
+            await loadFormOptions(); 
+            
+        } else {
+            alert(data.error || "Erro ao tentar excluir registro.");
         }
     } catch (e) {
-        console.error("Erro ao excluir", e);
+        console.error("Erro na comunicação:", e);
+        alert("Falha ao processar a exclusão.");
+    }
+};
+
+(window as any).saveCrudItem = async () => {
+    const nameInput = document.querySelector<HTMLInputElement>('#modal-input-name');
+    const priceInput = document.querySelector<HTMLInputElement>('#modal-input-price');
+    
+    if (!nameInput?.value) return alert("Preencha o nome!");
+
+    const payload: any = { name: nameInput.value };
+    if (currentTarget === 'events') payload.price = priceInput?.value;
+
+    try {
+        const res = await fetch(`http://localhost:8080/${currentTarget}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            nameInput.value = '';
+            if (priceInput) priceInput.value = '';
+            
+            // 1. Atualiza a lista de exclusão do próprio MODAL
+            await refreshModalList(); 
+
+            // 2. ATUALIZA OS SELECTS DO FORMULÁRIO DE AGENDAMENTO (O que faltava!)
+            await loadFormOptions(); 
+
+            alert("Cadastrado com sucesso!");
+        }
+    } catch (e) {
+        console.error("Erro ao salvar item", e);
     }
 };
 
