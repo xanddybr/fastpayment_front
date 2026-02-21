@@ -126,7 +126,10 @@ const renderAdminDashboard = async () => {
     const container = document.querySelector<HTMLDivElement>('#events-container')!;
     const header = sections.selection.querySelector('header');
 
-    // 1. MENU HORIZONTAL SUPERIOR
+    // Recupera o nome do usuário que salvamos no login
+    // Se não houver nada, usamos "Administrador" como fallback
+    const adminName = localStorage.getItem('admin_full_name') || 'Administrador';
+
     if (header) {
         header.className = "fixed top-0 left-0 w-full bg-white border-b border-slate-100 z-50 shadow-sm";
         header.innerHTML = `
@@ -139,20 +142,17 @@ const renderAdminDashboard = async () => {
                     <button onclick="changeAdminTab('historico')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Histórico</button>
                 </nav>
                 <div class="flex items-center gap-4">
-                    <span class="text-xs font-bold text-slate-400">Olá Administrador</span>
+                    <span class="text-xs font-bold text-slate-400">Olá, ${adminName}</span>
                     <button onclick="makeLogout()" class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all">Sair</button>
                 </div>
             </div>
         `;
     }
 
-    // Ajusta o container para não ficar sob o menu fixo
     container.className = "max-w-7xl mx-auto px-6 pt-24 pb-10";
     
-    // Inicia na aba de Boas-vindas
     (window as any).changeAdminTab('inicio');
-
-    };
+};
 
     (window as any).closeCrudModal = () => {
         const modal = document.querySelector<HTMLDivElement>('#modal-crud');
@@ -199,10 +199,11 @@ const renderAdminDashboard = async () => {
     
     switch (tab) {
         case 'inicio':
+            const currentName = localStorage.getItem('admin_full_name') || 'Seu nome de usuário não foi carregado!';
             container.innerHTML = `
                 <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
                     <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-4xl mb-6">👋</div>
-                    <h1 class="text-4xl font-black text-slate-900 mb-2">Bem-vindo, Administrador!</h1>
+                    <h1 class="text-4xl font-black text-slate-900 mb-2">Bem-vindo, ${currentName}!</h1>
                     <p class="text-slate-500 max-w-md">Selecione uma opção no menu superior para começar a gerenciar sua plataforma.</p>
                 </div>
             `;
@@ -391,25 +392,51 @@ const setupFormListener = () => {
 };
 
 // --- MODAL CRUD ---
+// 1. Garanta que a variável de controle mude ANTES de buscar os dados
 (window as any).openCrudModal = async (target: 'events' | 'units' | 'event-types') => {
-    currentTarget = target;
+    // Atualiza a variável global que controla o que estamos editando
+    currentTarget = target; 
+
     const modal = document.querySelector<HTMLDivElement>('#modal-crud')!;
-    document.querySelector<HTMLHeadingElement>('#modal-title')!.innerText = `Gerenciar ${target}`;
-    document.querySelector<HTMLDivElement>('#field-price')!.classList.toggle('hidden', target !== 'events');
+    const title = document.querySelector<HTMLHeadingElement>('#modal-title')!;
+    const priceField = document.querySelector<HTMLDivElement>('#field-price')!;
+
+    // Ajusta visualmente o modal conforme o alvo
+    title.innerText = `Gerenciar ${target === 'events' ? 'Eventos' : target === 'units' ? 'Unidades' : 'Tipos de Evento'}`;
+    
+    // Só mostra o campo de preço se for Evento
+    priceField.classList.toggle('hidden', target !== 'events');
+
+    // Limpa o select antes de carregar novos dados para evitar confusão visual
+    const select = document.querySelector<HTMLSelectElement>('#modal-select-list')!;
+    select.innerHTML = '<option value="">Carregando...</option>';
+
     modal.classList.remove('hidden');
-    refreshModalList();
+
+    // Chama a atualização passando o alvo correto
+    await refreshModalList();
 };
 
+// 2. Ajuste a função de carregamento para usar a variável atualizada
 async function refreshModalList() {
-    const res = await fetch(`http://localhost:8080/${currentTarget}`, { credentials: 'include' });
-    const data = await res.json();
-    const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
-    if (select) {
-        select.innerHTML = '<option value="">Selecione para excluir...</option>' + 
-            data.map((item: any) => `<option value="${item.id}">${item.name || item.nome}</option>`).join('');
+    // Importante: a URL deve usar o currentTarget que acabamos de definir
+    const url = `http://localhost:8080/${currentTarget}`;
+    
+    try {
+        const res = await fetch(url, { credentials: 'include' });
+        const data = await res.json();
+        
+        const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
+        if (select) {
+            select.innerHTML = '<option value="">Selecione para excluir...</option>' + 
+                data.map((item: any) => `
+                    <option value="${item.id}">${item.name || item.nome}</option>
+                `).join('');
+        }
+    } catch (error) {
+        console.error("Erro ao carregar lista do modal:", error);
     }
-    loadFormOptions();
-}
+}   
 
 // --- AUTH ACTIONS ---
 (window as any).selectEvent = (id: number, name: string) => {
@@ -421,7 +448,20 @@ async function refreshModalList() {
 };
 
 (window as any).makeLogout = async () => {
-    await fetch('http://localhost:8080/logout', { method: 'POST', credentials: 'include' });
+    try {
+        // Tenta avisar o servidor para matar a sessão
+        await fetch('http://localhost:8080/logout', { 
+            method: 'POST', 
+            credentials: 'include' 
+        });
+    } catch (error) {
+        console.error("Erro ao comunicar logout com o servidor", error);
+    }
+
+    // LIMPEZA OBRIGATÓRIA:
+    localStorage.removeItem('admin_full_name'); // Remove o nome que aparece no "Olá"
+    
+    // REDIRECIONAMENTO:
     window.location.href = '/agenda/login';
 };
 
@@ -434,8 +474,15 @@ async function refreshModalList() {
         credentials: 'include',
         body: JSON.stringify({ email, password })
     });
-    if (res.ok) window.location.href = '/agenda/admin';
-    else alert("Erro no login.");
+
+    if (res.ok) {
+        const data = await res.json();
+        // Salva o nome vindo da tabela persons (objeto user.full_name)
+        localStorage.setItem('admin_full_name', data.user.full_name);
+        window.location.href = '/agenda/admin';
+    } else {
+        alert("Erro no login.");
+    }
 };
 
 (window as any).deleteSchedule = async (id: number) => {
@@ -474,11 +521,14 @@ async function refreshModalList() {
 };
 
 // Função para EXCLUIR item do CRUD
+// Função para EXCLUIR item do CRUD corrigida
+// Função para EXCLUIR item do CRUD (Atualizada com loadFormOptions)
 (window as any).deleteCrudItem = async () => {
-    const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
-    const id = select?.value;
+    const selectElement = document.querySelector('#modal-select-list') as HTMLSelectElement;
+    const id = selectElement.value;
 
     if (!id) return alert("Selecione um item para excluir");
+
     if (!confirm("Tem certeza que deseja excluir este item?")) return;
 
     try {
@@ -487,12 +537,66 @@ async function refreshModalList() {
             credentials: 'include'
         });
 
+        const responseText = await res.text();
+        let data;
+
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Servidor retornou algo que não é JSON:", responseText);
+            alert("Erro inesperado no servidor.");
+            return;
+        }
+
         if (res.ok) {
-            refreshModalList();
-            alert("Excluído com sucesso!");
+            alert(data.message || "Excluído com sucesso!");
+            
+            // 1. Atualiza a lista dentro do próprio modal (o select de exclusão)
+            await refreshModalList(); 
+
+            // 2. ATUALIZA OS SELECTS DO FORMULÁRIO PRINCIPAL (O que faltava na deleção!)
+            await loadFormOptions(); 
+            
+        } else {
+            alert(data.error || "Erro ao tentar excluir registro.");
         }
     } catch (e) {
-        console.error("Erro ao excluir", e);
+        console.error("Erro na comunicação:", e);
+        alert("Falha ao processar a exclusão.");
+    }
+};
+
+(window as any).saveCrudItem = async () => {
+    const nameInput = document.querySelector<HTMLInputElement>('#modal-input-name');
+    const priceInput = document.querySelector<HTMLInputElement>('#modal-input-price');
+    
+    if (!nameInput?.value) return alert("Preencha o nome!");
+
+    const payload: any = { name: nameInput.value };
+    if (currentTarget === 'events') payload.price = priceInput?.value;
+
+    try {
+        const res = await fetch(`http://localhost:8080/${currentTarget}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            nameInput.value = '';
+            if (priceInput) priceInput.value = '';
+            
+            // 1. Atualiza a lista de exclusão do próprio MODAL
+            await refreshModalList(); 
+
+            // 2. ATUALIZA OS SELECTS DO FORMULÁRIO DE AGENDAMENTO (O que faltava!)
+            await loadFormOptions(); 
+
+            alert("Cadastrado com sucesso!");
+        }
+    } catch (e) {
+        console.error("Erro ao salvar item", e);
     }
 };
 
