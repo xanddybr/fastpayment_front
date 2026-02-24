@@ -1,7 +1,11 @@
 import './style.css';
 
+<<<<<<< HEAD
 // --- CONFIGURAÇÃO DA API ---
 // Detecta automaticamente se deve usar localhost ou o domínio real
+=======
+// --- CONFIGURAÇÃO HÍBRIDA DA API ---
+>>>>>>> main
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:8080' 
     : 'http://misturadeluz.com/agenda/api/public';
@@ -29,21 +33,30 @@ const btnVerify = document.querySelector<HTMLButtonElement>('#btn-verify-otp')!;
 
 // --- ROTEADOR ---
 const handleRouting = async () => {
-    const urlParams = new URLSearchParams(window.location.search);
     const path = window.location.pathname;
     
+<<<<<<< HEAD
     const cleanPath = path.replace('/agenda', '') || '/';
+=======
+    // Isso garante que tanto no localhost quanto no servidor /agenda/login funcione
+    const isLogin = path.includes('/login');
+    const isAdmin = path.includes('/admin');
+>>>>>>> main
     
     hideAllSections();
 
-    if (cleanPath.includes('/admin')) {
+    if (isAdmin) {
         const isAuthenticated = await checkAuth();
         if (isAuthenticated) {
             renderAdminDashboard();
         } else {
+<<<<<<< HEAD
+=======
+            // Caminho absoluto para evitar erros de subpasta
+>>>>>>> main
             window.location.href = '/agenda/login';
         }
-    } else if (cleanPath.includes('/login')) {
+    } else if (isLogin) {
         sections.login.classList.remove('hidden');
     } else {
         sections.selection.classList.remove('hidden');
@@ -74,6 +87,10 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     container.innerHTML = '<p class="text-center col-span-full text-slate-400">Buscando horários...</p>';
     
     try {
+<<<<<<< HEAD
+=======
+        // Removido o prefixo /api/ fixo para usar a estrutura da API_BASE_URL
+>>>>>>> main
         const url = `${API_BASE_URL}/api/schedules?slug=${eventSlug}&type=${typeSlug}`;
         const response = await fetch(url, { credentials: 'include' });
         const schedules = await response.json();
@@ -192,7 +209,7 @@ const renderAdminDashboard = async () => {
     
     switch (tab) {
         case 'inicio':
-            const currentName = localStorage.getItem('admin_full_name') || 'Seu nome de usuário não foi carregado!';
+            const currentName = localStorage.getItem('admin_full_name') || 'Administrador';
             container.innerHTML = `
                 <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
                     <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-4xl mb-6">👋</div>
@@ -329,7 +346,6 @@ const loadFormOptions = async () => {
             sTp.innerHTML = '<option value="" disabled selected>Selecione o Tipo</option>' + 
                 tp.map((t: any) => `<option value="${t.id}">${t.name}</option>`).join('');
         }
-
     } catch (e) { 
         console.error("Erro ao carregar selects", e); 
     }
@@ -387,7 +403,10 @@ const setupFormListener = () => {
 
 async function refreshModalList() {
     const url = `${API_BASE_URL}/${currentTarget}`;
+<<<<<<< HEAD
     
+=======
+>>>>>>> main
     try {
         const res = await fetch(url, { credentials: 'include' });
         const data = await res.json();
@@ -420,10 +439,14 @@ async function refreshModalList() {
             credentials: 'include' 
         });
     } catch (error) {
-        console.error("Erro ao comunicar logout com o servidor", error);
+        console.error("Erro ao comunicar logout", error);
     }
+<<<<<<< HEAD
 
     localStorage.removeItem('admin_full_name'); 
+=======
+    localStorage.removeItem('admin_full_name');
+>>>>>>> main
     window.location.href = '/agenda/login';
 };
 
@@ -448,7 +471,14 @@ async function refreshModalList() {
 
 (window as any).deleteSchedule = async (id: number) => {
     if (!confirm("Excluir agendamento?")) return;
+<<<<<<< HEAD
     const res = await fetch(`${API_BASE_URL}/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
+=======
+    const res = await fetch(`${API_BASE_URL}/schedules/${id}`, { 
+        method: 'DELETE', 
+        credentials: 'include' 
+    });
+>>>>>>> main
     if (res.ok) loadAdminTableData();
 };
 
@@ -470,10 +500,15 @@ async function refreshModalList() {
         });
 
         if (res.ok) {
-            nameInput.value = '';
+            if (nameInput) nameInput.value = '';
             if (priceInput) priceInput.value = '';
+<<<<<<< HEAD
             await refreshModalList(); 
             await loadFormOptions(); 
+=======
+            await refreshModalList();
+            await loadFormOptions();
+>>>>>>> main
             alert("Cadastrado com sucesso!");
         }
     } catch (e) {
@@ -494,6 +529,7 @@ async function refreshModalList() {
             credentials: 'include'
         });
 
+<<<<<<< HEAD
         const responseText = await res.text();
         let data;
         try {
@@ -506,9 +542,14 @@ async function refreshModalList() {
 
         if (res.ok) {
             alert(data.message || "Excluído com sucesso!");
+=======
+        if (res.ok) {
+            alert("Excluído com sucesso!");
+>>>>>>> main
             await refreshModalList(); 
             await loadFormOptions(); 
         } else {
+            const data = await res.json();
             alert(data.error || "Erro ao tentar excluir registro.");
         }
     } catch (e) {
