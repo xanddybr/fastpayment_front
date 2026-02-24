@@ -23,23 +23,23 @@ const btnVerify = document.querySelector<HTMLButtonElement>('#btn-verify-otp')!;
 
 // --- ROTEADOR ---
 const handleRouting = async () => {
-    const urlParams = new URLSearchParams(window.location.search);
     const path = window.location.pathname;
     
-    // Opcional: Remover o prefixo "/agenda" para a lógica interna ser mais limpa
-    const cleanPath = path.replace('/agenda', '') || '/';
+    // Isso garante que tanto no localhost quanto no servidor /agenda/login funcione
+    const isLogin = path.includes('/login');
+    const isAdmin = path.includes('/admin');
     
     hideAllSections();
 
-    if (cleanPath.includes('/admin')) {
+    if (isAdmin) {
         const isAuthenticated = await checkAuth();
         if (isAuthenticated) {
             renderAdminDashboard();
         } else {
-            // Redireciona para o login dentro da pasta agenda
+            // Caminho absoluto para evitar erros de subpasta
             window.location.href = '/agenda/login';
         }
-    } else if (cleanPath.includes('/login')) {
+    } else if (isLogin) {
         sections.login.classList.remove('hidden');
     } else {
         sections.selection.classList.remove('hidden');
