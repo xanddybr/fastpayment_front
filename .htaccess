@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /agenda/
+    RewriteBase  /agenda/
 
     # Se o usuário digitar algo que não é um arquivo (como /login), 
     # o Apache vai servir o index.html e deixar o seu JavaScript decidir o que mostrar.
