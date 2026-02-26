@@ -1,9 +1,0 @@
-RewriteEngine On
-RewriteBase /agenda/
-
-# Se o arquivo ou pasta não existir fisicamente...
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-
-# ...manda para o index.html, que vai ler a URL e mostrar a seção de login
-RewriteRule . /agenda/index.html [L]
