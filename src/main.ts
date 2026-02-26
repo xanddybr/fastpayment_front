@@ -3,7 +3,7 @@ import './style.css';
 // --- CONFIGURAÇÃO HÍBRIDA DA API ---
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:8080' 
-    : 'http://misturadeluz.com/agenda/api/public';
+    : 'https://misturadeluz.com/agenda/api/public';
 
 // --- ESTADO DA APLICAÇÃO ---
 let selectedEvent = { id: 0, name: '' };
@@ -28,26 +28,29 @@ const btnVerify = document.querySelector<HTMLButtonElement>('#btn-verify-otp')!;
 
 // --- ROTEADOR ---
 const handleRouting = async () => {
-    // Normaliza o path para ignorar a pasta /agenda e barras extras
-    const path = window.location.pathname.replace('/agenda', '').replace(/\/$/, '') || '/';
-    
-    const isLogin = path === '/login' || path.includes('/login');
-    const isAdmin = path === '/admin' || path.includes('/admin');
+    // Detecta o arquivo atual ou o hash
+    const path = window.location.pathname;
+    const hash = window.location.hash;
     
     hideAllSections();
 
-    if (isAdmin) {
+    // Se o arquivo for login.html OU a URL tiver #login
+    if (path.includes('login.html') || hash === '#login') {
+        if (sections.login) sections.login.classList.remove('hidden');
+    } 
+    // Se o arquivo for admin (ou se você criar um admin.html depois)
+    else if (path.includes('admin') || hash === '#admin') {
         const isAuthenticated = await checkAuth();
         if (isAuthenticated) {
             renderAdminDashboard();
         } else {
-            // Caminho absoluto para evitar erros de subpasta
-            window.location.href = '/agenda/login';
+            // Se falhar, manda para o arquivo físico de login
+            window.location.href = 'login.html';
         }
-    } else if (isLogin) {
-        sections.login.classList.remove('hidden');
-    } else {
-        sections.selection.classList.remove('hidden');
+    } 
+    // Caso padrão (agenda.html ou index.html)
+    else {
+        if (sections.selection) sections.selection.classList.remove('hidden');
         loadEvents();
     }
 };
@@ -423,25 +426,28 @@ async function refreshModalList() {
         console.error("Erro ao comunicar logout", error);
     }
     localStorage.removeItem('admin_full_name');
-    window.location.href = '/agenda/login';
+    window.location.href = '/agenda/login.html';
 };
 
 (window as any).makeLogin = async () => {
     const email = document.querySelector<HTMLInputElement>('#admin-email')!.value;
     const password = document.querySelector<HTMLInputElement>('#admin-password')!.value;
+    
+    // Use a URL completa da API que confirmamos que responde
     const res = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        credentials: 'include', // Essencial para a Hostinger manter sua sessão!
         body: JSON.stringify({ email, password })
     });
 
     if (res.ok) {
         const data = await res.json();
         localStorage.setItem('admin_full_name', data.user.full_name);
-        window.location.href = '/agenda/admin';
+        // Após logar, redireciona para a agenda com o hash de admin
+        window.location.href = 'index.html#admin';
     } else {
-        alert("Erro no login.");
+        alert("Erro no login: Verifique usuário e senha.");
     }
 };
 
