@@ -1,10 +1,9 @@
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase  /agenda/
+RewriteEngine On
+RewriteBase /agenda/
 
-    # Se o usuário digitar algo que não é um arquivo (como /login), 
-    # o Apache vai servir o index.html e deixar o seu JavaScript decidir o que mostrar.
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule . /agenda/index.html [L]
-</IfModule>
+# Se o arquivo ou pasta não existir fisicamente...
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# ...manda para o index.html, que vai ler a URL e mostrar a seção de login
+RewriteRule . /agenda/index.html [L]

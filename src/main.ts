@@ -28,11 +28,11 @@ const btnVerify = document.querySelector<HTMLButtonElement>('#btn-verify-otp')!;
 
 // --- ROTEADOR ---
 const handleRouting = async () => {
-    const path = window.location.pathname;
+    // Normaliza o path para ignorar a pasta /agenda e barras extras
+    const path = window.location.pathname.replace('/agenda', '').replace(/\/$/, '') || '/';
     
-    // Isso garante que tanto no localhost quanto no servidor /agenda/login funcione
-    const isLogin = path.includes('/login');
-    const isAdmin = path.includes('/admin');
+    const isLogin = path === '/login' || path.includes('/login');
+    const isAdmin = path === '/admin' || path.includes('/admin');
     
     hideAllSections();
 
