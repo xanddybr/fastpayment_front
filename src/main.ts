@@ -5,9 +5,21 @@ const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:8080' 
     : 'https://misturadeluz.com/agenda/api/public';
 
+const APP_VERSION = "v1.0.0";
+
+const injectVersion = () => {
+    // Procura por todos os elementos que precisam da versão
+    const elements = document.querySelectorAll('.app-version');
+    elements.forEach(el => {
+        el.textContent = APP_VERSION;
+    });
+};
+
 // --- ESTADO DA APLICAÇÃO ---
 let selectedEvent = { id: 0, name: '' };
 let currentTarget: 'events' | 'units' | 'event-types' = 'events';
+
+
 
 // --- SELEÇÃO DE ELEMENTOS ---
 const sections = {
@@ -28,31 +40,30 @@ const btnVerify = document.querySelector<HTMLButtonElement>('#btn-verify-otp')!;
 
 // --- ROTEADOR ---
 const handleRouting = async () => {
-    // Detecta o arquivo atual ou o hash
     const path = window.location.pathname;
     const hash = window.location.hash;
     
     hideAllSections();
 
-    // Se o arquivo for login.html OU a URL tiver #login
-    if (path.includes('login.html') || hash === '#login') {
-        if (sections.login) sections.login.classList.remove('hidden');
-    } 
-    // Se o arquivo for admin (ou se você criar um admin.html depois)
-    else if (path.includes('admin') || hash === '#admin') {
-        const isAuthenticated = await checkAuth();
-        if (isAuthenticated) {
-            renderAdminDashboard();
+    // 1. Rota de Login ou Admin (DESLIGA o background)
+    if (path.includes('login.html') || hash === '#login' || hash === '#admin') {
+        document.body.classList.remove('bg-reiki');
+        
+        if (hash === '#admin') {
+            const isAuthenticated = await checkAuth();
+            isAuthenticated ? renderAdminDashboard() : window.location.href = 'login.html';
         } else {
-            // Se falhar, manda para o arquivo físico de login
-            window.location.href = 'login.html';
+            if (sections.login) sections.login.classList.remove('hidden');
         }
     } 
-    // Caso padrão (agenda.html ou index.html)
+    // 2. Rota da Agenda Pública (LIGA o background)
     else {
+        document.body.classList.add('bg-reiki'); // Ativa o Reiki apenas aqui
         if (sections.selection) sections.selection.classList.remove('hidden');
         loadEvents();
     }
+
+    injectVersion();
 };
 
 const checkAuth = async () => {
@@ -67,7 +78,10 @@ const hideAllSections = () => {
 };
 
 const getDayName = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', { weekday: 'long' });
+    const capitalize = (s:any) => s && s[0].toUpperCase() + s.slice(1);
+    const dayGet = new Date(dateString).toLocaleDateString('pt-BR', { weekday: 'long' });
+    const nomeFormatado = capitalize(dayGet);
+    return nomeFormatado
 };
 
 // --- AGENDA PÚBLICA (COM FILTROS) ---
@@ -118,7 +132,7 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
                 
                 <button onclick="selectEvent(${item.schedule_id}, '${item.event_name}')" 
                     class="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:from-violet-500 hover:to-fuchsia-500 transition-all transform active:scale-95">
-                    Reservar Agora
+                    Comprar Agora!
                 </button>
             </div>
         `).join('');
@@ -141,7 +155,7 @@ const renderAdminDashboard = async () => {
         header.innerHTML = `
             <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
                 <nav class="flex items-center gap-8 h-full">
-                    <span class="font-black text-slate-900 text-xl tracking-tighter mr-4">ADMIN</span>
+                    <span class="font-black text-slate-900 text-xl tracking-tighter mr-4">fastPayment <span class="app-version text-[13px] text-gray-400"></span></span>
                     <button onclick="changeAdminTab('inicio')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Início</button>
                     <button onclick="changeAdminTab('agenda')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Agenda</button>
                     <button onclick="changeAdminTab('inscricoes')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Inscrições</button>
@@ -154,6 +168,8 @@ const renderAdminDashboard = async () => {
             </div>
         `;
     }
+
+    injectVersion();
 
     container.className = "max-w-7xl mx-auto px-6 pt-24 pb-10";
     (window as any).changeAdminTab('inicio');
@@ -202,9 +218,13 @@ const renderAdminDashboard = async () => {
                 <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
                     <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-4xl mb-6">👋</div>
                     <h1 class="text-4xl font-black text-slate-900 mb-2">Bem-vindo, ${currentName}!</h1>
-                    <p class="text-slate-500 max-w-md">Selecione uma opção no menu superior para começar a gerenciar sua plataforma.</p>
+                    <p class="text-slate-500 max-w-md">Selecione uma opção no menu superior para começar a gerenciar sua plataforma.</p> 
+                    <div class="mt-4 text-center">
+                        <span class="app-version text-[10px] text-gray-400"></span>
+                    </div>
                 </div>
             `;
+            injectVersion();
             break;
 
         case 'agenda':
@@ -407,6 +427,19 @@ async function refreshModalList() {
     }
 }   
 
+// No final do loadEvents, onde criamos o footer:
+const footer = document.createElement('div');
+footer.className = "col-span-full text-center mt-12 mb-8 flex flex-col items-center gap-2";
+footer.innerHTML = `
+    <span class="opacity-30 text-[9px] text-white font-mono uppercase tracking-widest">
+        MISTURA DE LUZ <span class="app-version"></span>
+    </span>
+    <a href="login.html" class="text-[10px] text-slate-500 hover:text-fuchsia-400 transition-colors font-bold uppercase tracking-tighter decoration-dotted underline underline-offset-4">
+        Acesso Restrito
+    </a>
+`;
+injectVersion();
+
 // --- AUTH ACTIONS ---
 (window as any).selectEvent = (id: number, name: string) => {
     selectedEvent = { id, name };
@@ -515,6 +548,8 @@ async function refreshModalList() {
         alert("Falha ao processar a exclusão.");
     }
 };
+
+
 
 // --- INICIALIZAÇÃO ---
 window.addEventListener('popstate', handleRouting);

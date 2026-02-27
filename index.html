@@ -7,14 +7,14 @@
     <title>FastPayment | Mistura de Luz</title>
   </head>
   <body class="bg-black text-slate-200 ...">
-    
     <div id="app" class="min-h-screen p-4 md:p-8">
       <main class="w-full max-w-6xl mx-auto">
-        
-        <section id="login" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6 my-20">
+        <section id="login" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6 my-8">
           <div class="text-center">
-            <h1 class="text-3xl font-black text-slate-900">Mistura de Luz</h1>
-            <p class="text-slate-500 mt-2">Acesse a agenda</p>
+            <div class="flex justify-center">
+                <img src="/images/logo.png" alt="Logo" class="h-30 w-auto object-contain">
+            </div>
+            <p class="text-slate-500 mt-2">Acesso á agenda do administrador</p>
           </div>
           <div class="space-y-4">
             <input type="email" id="admin-email" placeholder="E-mail" class="w-full border rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none">
@@ -23,13 +23,18 @@
               Entrar no Painel
             </button>
           </div>
+          <div class="mt-4 text-center text-[13px]">
+            &copy; fastPayment <span class="app-version text-[13px] text-gray-400"></span>
+          </div>
         </section>
 
         <section id="step-selection" class="hidden space-y-8">
           <header class="text-center mb-10">
-            <h1 class="text-4xl font-black text-slate-900 text-violet-400 tracking-tight">Agenda - Mistura de Luz 2026</h1>
-            <p class="text-slate-500 mt-2 text-lg bg-violet-600/20 text-violet-400">Selecione o evento desejado para prosseguir</p>
+            <h1 class="text-4xl font-black text-slate-900 text-violet-400 tracking-tight">Agenda de Eventos 2026 - Mistura de Luz <span class="app-version text-[10px] text-gray-400"></span></h1>
+            <p class="text-slate-500 mt-2 text-lg bg-violet-600/20 text-violet-400">Selecione o evento desejado!</p> 
+            
           </header>
+          <a href="login.html" class="text-slate-600 text-left hover:text-fuchsia-500 text-[11px] font-black uppercase tracking-widest"> >>>ADMIN</a>
           <div id="events-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div class="col-span-full text-center py-10 text-slate-400 font-medium">
               Buscando horários disponíveis na agenda...
@@ -109,7 +114,6 @@
           </div>
       </div>
     </div>
-
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

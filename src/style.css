@@ -43,28 +43,64 @@ body {
     display: none !important;
 }
 
-body {
-    margin: 0;
-    min-height: 100vh;
-    position: relative;
+/* Este código só funcionará quando o body tiver a classe bg-reiki */
+body.bg-reiki::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/reiki.jpg'); 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.15; 
+  z-index: -1;
+  pointer-events: none;
 }
 
-body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    /* Substitua pelo caminho da sua imagem */
-    background-image: url('');
-    background-position: center;
-    background-attachment: fixed;
-    opacity: 0.3; /* 30% de opacidade como solicitado */
-    z-index: -1; /* Fica atrás de tudo */
+/* Cor de fundo padrão para as outras telas (Login/Admin) */
+body {
+  background-color: #f8fafc; /* Um tom claro para o Admin, ou mantenha o que preferir */
+  transition: background-color 0.3s ease;
+}
+
+/* Quando estiver na agenda, podemos forçar o fundo escuro para destacar o Reiki */
+body.bg-reiki {
+  background-color: #0f172a;
 }
 /* Ajuste para o container principal ficar centralizado e legível */
 #events-container {
     padding: 2rem;
     gap: 2rem;
+}
+
+/* Ajustes para Celulares (Telas menores que 768px) */
+@media (max-width: 768px) {
+  /* 1. Força os grids a terem apenas 1 coluna */
+  #events-container {
+    grid-template-columns: 1fr !important;
+    padding: 1rem !important;
+  }
+
+  /* 2. Ajusta o tamanho dos títulos para não quebrar */
+  h1 { font-size: 1.8rem !important; }
+  h3 { font-size: 1.4rem !important; }
+
+  /* 3. Torna as tabelas do admin roláveis lateralmente */
+  .overflow-hidden {
+    overflow-x: auto !important;
+  }
+  
+  table {
+    min-width: 600px; /* Garante que a tabela não esprema as letras */
+  }
+
+  /* 4. Ajusta o header do Admin */
+  header nav {
+    gap: 1rem !important;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
 }
