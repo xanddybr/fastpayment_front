@@ -13,14 +13,11 @@ const safeFetch = async (url: string, options: RequestInit = {}) => {
 
     // Se o SessionMiddleware retornar 401 (Unauthorized)
     if (response.status === 401) {
-     
             const data = await response.json();
             const msg = "Sessão expirou por falta de atividade";
             alert(msg);
-       
         localStorage.removeItem('admin_full_name');
         window.location.href = 'login.html';
-
     } 
 
     return response;
