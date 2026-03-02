@@ -7,6 +7,25 @@ const API_BASE_URL = window.location.hostname === 'localhost'
 
 const APP_VERSION = "v1.0.0";
 
+// 1. Defina a função safeFetch logo abaixo das suas constantes de URL
+const safeFetch = async (url: string, options: RequestInit = {}) => {
+    const response = await fetch(url, options);
+
+    // Se o SessionMiddleware retornar 401 (Unauthorized)
+    if (response.status === 401) {
+     
+            const data = await response.json();
+            const msg = "Sessão expirou por falta de atividade";
+            alert(msg);
+       
+        localStorage.removeItem('admin_full_name');
+        window.location.href = 'login.html';
+
+    } 
+
+    return response;
+};
+
 const injectVersion = () => {
     // Procura por todos os elementos que precisam da versão
     const elements = document.querySelectorAll('.app-version');
@@ -68,7 +87,7 @@ const handleRouting = async () => {
 
 const checkAuth = async () => {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/check`, { credentials: 'include' });
+        const res = await safeFetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
         return res.ok;
     } catch { return false; }
 };
@@ -92,7 +111,7 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     container.innerHTML = '<p class="text-center col-span-full text-slate-400">Buscando horários...</p>';
     
     try {
-        // Removido o prefixo /api/ fixo para usar a estrutura da API_BASE_URL
+        
         const url = `${API_BASE_URL}/api/schedules?slug=${eventSlug}&type=${typeSlug}`;
         const response = await fetch(url, { credentials: 'include' });
         const schedules = await response.json();
@@ -141,6 +160,116 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     }
 };
 
+const loadInscriptionsData = async () => {
+    const accordion = document.querySelector('#inscriptionsAccordion');
+    if (!accordion) return;
+
+    try {
+        const res = await safeFetch(`${API_BASE_URL}/subscribers`, { credentials: 'include' });
+        const rawData = await res.json();
+
+        if (!rawData || rawData.length === 0) {
+            accordion.innerHTML = '<p class="text-center py-10">Nenhum registro encontrado.</p>';
+            return;
+        }
+
+        // --- LÓGICA DE AGRUPAMENTO ---
+        const grouped = rawData.reduce((acc: any, item: any) => {
+            if (!acc[item.person_id]) {
+                acc[item.person_id] = {
+                    name: item.full_name,
+                    email: item.email,
+                    phone: item.phone,
+                    details: {
+                        profession: item.activity_professional,
+                        city: item.city,
+                        neighborhood: item.neighborhood
+                    },
+                    events: []
+                };
+            }
+            acc[item.person_id].events.push(item);
+            return acc;
+        }, {});
+
+        // --- RENDERIZAÇÃO ---
+        accordion.innerHTML = Object.keys(grouped).map((personId, index) => {
+            const person = grouped[personId];
+            
+            return `
+            <div class="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+                <button onclick="toggleAccordion(${index})" class="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-all">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black">
+                            ${person.name.charAt(0)}
+                        </div>
+                        <div class="text-left">
+                            <h3 class="font-bold text-slate-900">${person.name}</h3>
+                            <p class="text-xs text-slate-400">${person.email} • ${person.phone}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">
+                            ${person.events.length} Evento(s)
+                        </span>
+                        <span id="icon-${index}" class="text-slate-300 transition-transform">▼</span>
+                    </div>
+                </button>
+
+                <div id="content-${index}" class="hidden border-t border-slate-50 bg-slate-50/30 p-6">
+                    
+                    <div class="mb-6 p-4 bg-white rounded-2xl border border-slate-100 grid grid-cols-2 gap-4 text-xs">
+                        <p><b class="text-slate-400 uppercase text-[9px]">Profissão:</b> ${person.details.profession || '-'}</p>
+                        <p><b class="text-slate-400 uppercase text-[9px]">Local:</b> ${person.details.neighborhood}, ${person.details.city}</p>
+                    </div>
+
+                    <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Histórico de Inscrições</h4>
+                    
+                    <div class="space-y-4">
+                        ${person.events.map((ev: any) => `
+                            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <div class="flex justify-between items-start mb-2">
+                                        <span class="text-sm font-black text-blue-600">Inscrição #${ev.subscribed_id}</span>
+                                        <span class="text-[10px] font-bold ${ev.payment_status === 'approved' ? 'text-green-500' : 'text-orange-500'} uppercase">
+                                            ${ev.payment_status || 'Pendente'}
+                                        </span>
+                                    </div>
+                                    <div class="text-xs space-y-1 text-slate-600">
+                                        <p><b>Data:</b> ${new Date(ev.data_inscricao).toLocaleDateString()}</p>
+                                        <p><b>Valor:</b> R$ ${ev.valor_pago || '0,00'}</p>
+                                        <p><b>Pagador:</b> ${ev.payer_email || 'N/A'}</p>
+                                    </div>
+                                </div>
+
+                                <div class="bg-slate-50 p-4 rounded-2xl">
+                                    <p class="text-[9px] font-black text-fuchsia-600 uppercase mb-2">Anamnese do Evento</p>
+                                    <div class="text-[11px] text-slate-500 italic">
+                                        ${ev.course_reason ? `"${ev.course_reason.substring(0, 100)}..."` : 'Ficha não preenchida.'}
+                                    </div>
+                                    <button onclick="viewFullAnamnesis(${JSON.stringify(ev).replace(/"/g, '&quot;')})" class="mt-2 text-[10px] font-bold text-blue-500 underline">Ver ficha completa</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+    } catch (e) {
+        accordion.innerHTML = '<p class="text-center text-red-500">Erro ao renderizar dados.</p>';
+    }
+};
+
+(window as any).toggleAccordion = (index: number) => {
+    const content = document.getElementById(`content-${index}`);
+    const icon = document.getElementById(`icon-${index}`);
+    if (content && icon) {
+        content.classList.toggle('hidden');
+        icon.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+};
+
 // --- DASHBOARD ADMIN ---
 const renderAdminDashboard = async () => {
     hideAllSections();
@@ -159,7 +288,6 @@ const renderAdminDashboard = async () => {
                     <button onclick="changeAdminTab('inicio')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Início</button>
                     <button onclick="changeAdminTab('agenda')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Agenda</button>
                     <button onclick="changeAdminTab('inscricoes')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Inscrições</button>
-                    <button onclick="changeAdminTab('historico')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Histórico</button>
                 </nav>
                 <div class="flex items-center gap-4">
                     <span class="text-xs font-bold text-slate-400">Olá, ${adminName}</span>
@@ -271,11 +399,14 @@ const renderAdminDashboard = async () => {
 
         case 'inscricoes':
             container.innerHTML = `
-                <div class="py-10 text-center">
-                    <h2 class="text-2xl font-black text-slate-900">Inscrições Ativas</h2>
-                    <p class="text-slate-500">Módulo em desenvolvimento...</p>
+                <div class="col-span-full space-y-6">
+                    <h2 class="text-2xl font-black text-slate-900 mb-8">Gestão de Alunos e Inscrições</h2>
+                    <div id="inscriptionsAccordion" class="space-y-4">
+                        <p class="text-center py-10 text-slate-400">Organizando registros...</p>
+                    </div>
                 </div>
             `;
+            loadInscriptionsData();
             break;
 
         case 'historico':
@@ -292,11 +423,12 @@ const renderAdminDashboard = async () => {
 // --- CARREGAMENTO DE DADOS (ADMIN) ---
 const loadAdminTableData = async () => {
     const tbody = document.querySelector('#adminTableBody');
-    if (!tbody) return;
-    try {
-        const res = await fetch(`${API_BASE_URL}/schedules`, { credentials: 'include' });
-        const data = await res.json();
-        
+        if (!tbody) return;
+        try {
+            // Alinhado com seu index.php (sem o /api)
+            const res = await safeFetch(`${API_BASE_URL}/schedules`, { credentials: 'include' });
+            const data = await res.json();
+            
         const agora = new Date();
 
         tbody.innerHTML = data.map((item: any) => {
@@ -306,18 +438,14 @@ const loadAdminTableData = async () => {
 
             return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
-                    <td class="p-4 font-medium ${corTexto}">${getDayName(item.scheduled_at)}</td>
+                    <td class="p-4 font-bold ${corTexto}">${getDayName(item.scheduled_at)}</td>
                     <td class="p-4">
                         <div class="${corTexto}">${dataAgendamento.toLocaleDateString('pt-BR')} - ${dataAgendamento.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</div>
                     </td>
                     <td class="p-4 font-bold ${isExpirado ? 'text-red-600' : 'text-slate-900'}">${item.event_name}</td>
-                    <td class="p-4">
-                        <span class="bg-slate-100 text-slate-500 px-2 py-1 rounded text-[10px] font-bold uppercase">
-                            ${item.type_name || '-'}
-                        </span>
-                    </td>
+                    <td class="p-4 font-bold ${isExpirado ? 'text-red-600' : 'text-blue-600'}">${item.type_name || '-'}</td>
                     <td class="p-4 font-black ${isExpirado ? 'text-red-600' : 'text-blue-600'}">R$ ${item.event_price}</td>
-                    <td class="p-4 text-slate-600 text-xs font-bold uppercase">${item.unit_name}</td>
+                    <td class="p-4 font-black ${isExpirado ? 'text-red-600' : 'text-blue-600'}">${item.unit_name}</td>
                     <td class="p-4 text-center">
                         <button onclick="deleteSchedule(${item.schedule_id})" class="text-red-400 hover:text-red-600 font-bold transition-colors">Excluir</button>
                     </td>
@@ -333,9 +461,9 @@ const loadFormOptions = async () => {
     const opt = { credentials: 'include' as RequestCredentials };
     try {
         const [ev, un, tp] = await Promise.all([
-            fetch(`${API_BASE_URL}/events`, opt).then(r => r.json()),
-            fetch(`${API_BASE_URL}/units`, opt).then(r => r.json()),
-            fetch(`${API_BASE_URL}/event-types`, opt).then(r => r.json())
+            safeFetch(`${API_BASE_URL}/events`, opt).then(r => r.json()),
+            safeFetch(`${API_BASE_URL}/units`, opt).then(r => r.json()),
+            safeFetch(`${API_BASE_URL}/event-types`, opt).then(r => r.json())
         ]);
         
         const sEv = document.querySelector<HTMLSelectElement>('#select-evento');
@@ -373,7 +501,7 @@ const setupFormListener = () => {
             status: 'available'
         };
 
-        const res = await fetch(`${API_BASE_URL}/schedules`, {
+        const res = await safeFetch(`${API_BASE_URL}/schedules`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -412,7 +540,7 @@ const setupFormListener = () => {
 async function refreshModalList() {
     const url = `${API_BASE_URL}/${currentTarget}`;
     try {
-        const res = await fetch(url, { credentials: 'include' });
+        const res = await safeFetch(url, { credentials: 'include' });
         const data = await res.json();
         
         const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
@@ -458,6 +586,7 @@ injectVersion();
     } catch (error) {
         console.error("Erro ao comunicar logout", error);
     }
+
     localStorage.removeItem('admin_full_name');
     window.location.href = '/agenda/login.html';
 };
@@ -466,27 +595,36 @@ injectVersion();
     const email = document.querySelector<HTMLInputElement>('#admin-email')!.value;
     const password = document.querySelector<HTMLInputElement>('#admin-password')!.value;
     
-    // Use a URL completa da API que confirmamos que responde
-    const res = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Essencial para a Hostinger manter sua sessão!
-        body: JSON.stringify({ email, password })
-    });
+    try {
+        // Chamamos o safeFetch para a rota de login
+        const res = await safeFetch(`${API_BASE_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email, password })
+        });
 
-    if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem('admin_full_name', data.user.full_name);
-        // Após logar, redireciona para a agenda com o hash de admin
-        window.location.href = 'index.html#admin';
-    } else {
-        alert("Erro no login: Verifique usuário e senha.");
+        if (res.ok) {
+            // Lemos o JSON de resposta
+            const data = await res.json();
+            
+            // 1. Salvamos o nome do admin para o Dashboard
+            localStorage.setItem('admin_full_name', data.user.full_name);
+            
+            // 3. Redirecionamos para o Dashboard
+            window.location.href = 'index.html#admin';
+        
+        } else {
+            alert("Erro no login: Verifique suas credenciais.");
+        }
+    } catch (error) {
+        console.error("Falha na comunicação com o servidor:", error);
     }
 };
 
 (window as any).deleteSchedule = async (id: number) => {
     if (!confirm("Excluir agendamento?")) return;
-    const res = await fetch(`${API_BASE_URL}/schedules/${id}`, { 
+    const res = await safeFetch(`${API_BASE_URL}/schedules/${id}`, { 
         method: 'DELETE', 
         credentials: 'include' 
     });
@@ -503,7 +641,7 @@ injectVersion();
     if (currentTarget === 'events') payload.price = priceInput?.value;
 
     try {
-        const res = await fetch(`${API_BASE_URL}/${currentTarget}`, {
+        const res = await safeFetch(`${API_BASE_URL}/${currentTarget}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -530,7 +668,7 @@ injectVersion();
     if (!confirm("Tem certeza que deseja excluir este item?")) return;
 
     try {
-        const res = await fetch(`${API_BASE_URL}/${currentTarget}/${id}`, {
+        const res = await safeFetch(`${API_BASE_URL}/${currentTarget}/${id}`, {
             method: 'DELETE',
             credentials: 'include'
         });
