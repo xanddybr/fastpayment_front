@@ -7,6 +7,9 @@ const API_BASE_URL = window.location.hostname === 'localhost'
 
 const APP_VERSION = "v1.0.0";
 
+let inscriptionsCache: any[] = [];
+let modalOriginalHTML: string = ''; // Define como string vazia para começar
+     
 // 1. Defina a função safeFetch logo abaixo das suas constantes de URL
 const safeFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(url, options);
@@ -19,7 +22,6 @@ const safeFetch = async (url: string, options: RequestInit = {}) => {
         localStorage.removeItem('admin_full_name');
         window.location.href = 'login.html';
     } 
-
     return response;
 };
 
@@ -157,6 +159,99 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     }
 };
 
+// --- FUNÇÃO PARA VER FICHA COMPLETA ---
+(window as any).openFullAnamnesis = (subscribed_id: number) => {
+    // 1. Busca os dados no cache
+
+    
+    const ficha = inscriptionsCache.find((f: any) => f.subscribed_id === subscribed_id);
+    if (!ficha) return;
+
+    const modal = document.querySelector<HTMLDivElement>('#modal-anamnese');
+    if (!modal) return;
+
+    // 2. Prepara o conteúdo HTML baseado no seu schema.sql
+    const conteudoFicha = `
+        <div class="space-y-6 animate-in fade-in duration-300">
+            <div class="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-inner">
+                <p class="text-[9px] font-black text-fuchsia-400 uppercase tracking-[0.2em] mb-3">Dados do Curso</p>
+                <h4 class="text-xl font-black mb-1">${ficha.event_name}</h4>
+                <p class="text-xs font-bold text-slate-400 uppercase mb-4">${ficha.type_name} • ${ficha.unit_name}</p>
+                <div class="flex items-center gap-2 text-xs text-slate-300">
+                    <span>📅 ${new Date(ficha.scheduled_at).toLocaleDateString('pt-BR')}</span>
+                    <span>⏰ ${new Date(ficha.scheduled_at).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}h</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <b class="text-[9px] text-slate-400 uppercase block mb-1">Telefone</b>
+                    <span class="text-sm font-bold">${ficha.phone || '-'}</span>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <b class="text-[9px] text-slate-400 uppercase block mb-1">Profissão</b>
+                    <span class="text-sm font-bold">${ficha.activity_professional || '-'}</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-x-4 gap-y-3 p-2">
+                <div class="flex items-center gap-2 text-sm font-medium">
+                    ${ficha.is_medium == 1 ? '✅' : '❌'} <span class="text-slate-600">Médium</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm font-medium">
+                    ${ficha.is_tule_member == 1 ? '✅' : '❌'} <span class="text-slate-600">Membro TULE</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm font-medium">
+                    ${ficha.first_time == 1 ? '✅' : '❌'} <span class="text-slate-600">Primeira Vez</span>
+                </div>
+                <div class="text-sm font-medium">
+                    <span class="text-slate-400">Religião:</span> ${ficha.religion == 1 ? (ficha.religion_mention || 'Sim') : 'Não'}
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="p-5 bg-fuchsia-50/50 rounded-3xl border border-fuchsia-100">
+                    <b class="text-[9px] text-fuchsia-600 uppercase block mb-2 tracking-widest">Motivação / Obs. Motived</b>
+                    <p class="text-sm text-slate-700 italic leading-relaxed">"${ficha.obs_motived || ficha.course_reason || 'Nenhuma observação detalhada.'}"</p>
+                </div>
+                <div>
+                    <b class="text-[9px] text-slate-400 uppercase block mb-1 ml-1">Expectativas do Aluno</b>
+                    <p class="text-sm text-slate-600 px-1">${ficha.expectations || '-'}</p>
+                </div>
+            </div>
+            <button onclick="document.getElementById('modal-anamnese').classList.add('hidden')" 
+                    class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-800 transition-all mt-4">
+                Fechar Ficha
+            </button>
+        </div>
+    `;
+
+    // 3. Injeta o conteúdo no corpo do modal
+    const modalTitle = modal.querySelector('h2');
+    const modalBody = modal.querySelector('.p-8') || modal.querySelector('#modal-select-list')?.parentElement;
+
+    if (modalTitle) modalTitle.innerText = `Ficha de Inscrição: ${ficha.full_name}`;
+    if (modalBody) {
+        // Esconde o que for original (inputs, selects de cadastro) e coloca a ficha
+        modalBody.innerHTML = conteudoFicha;
+    }
+
+    modal.classList.remove('hidden');
+};
+
+// Fechar modais ao clicar no fundo (Overlay)
+window.onclick = (event) => {
+    const modalCrud = document.getElementById('modal-crud');
+    const modalAnamnese = document.getElementById('modal-anamnese');
+
+    if (event.target === modalCrud) {
+        modalCrud?.classList.add('hidden');
+    }
+    if (event.target === modalAnamnese) {
+        modalAnamnese?.classList.add('hidden');
+    }
+};
+
 const loadInscriptionsData = async () => {
     const accordion = document.querySelector('#inscriptionsAccordion');
     if (!accordion) return;
@@ -164,6 +259,7 @@ const loadInscriptionsData = async () => {
     try {
         const res = await safeFetch(`${API_BASE_URL}/subscribers`, { credentials: 'include' });
         const rawData = await res.json();
+        inscriptionsCache = rawData;
 
         if (!rawData || rawData.length === 0) {
             accordion.innerHTML = '<p class="text-center py-10">Nenhum registro encontrado.</p>';
@@ -190,64 +286,79 @@ const loadInscriptionsData = async () => {
         }, {});
 
         // --- RENDERIZAÇÃO ---
+        // --- RENDERIZAÇÃO DAS INSCRIÇÕES NO MAIN.TS ---
         accordion.innerHTML = Object.keys(grouped).map((personId, index) => {
             const person = grouped[personId];
             
             return `
-            <div class="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
-                <button onclick="toggleAccordion(${index})" class="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-all">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black">
+            <div class="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm mb-4">
+                <button onclick="toggleAccordion(${index})" class="w-full p-8 flex items-center justify-between hover:bg-slate-50 transition-all">
+                    <div class="flex items-center gap-6">
+                        <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black text-2xl">
                             ${person.name.charAt(0)}
                         </div>
                         <div class="text-left">
-                            <h3 class="font-bold text-slate-900">${person.name}</h3>
-                            <p class="text-xs text-slate-400">${person.email} • ${person.phone}</p>
+                            <h3 class="text-xl font-black text-slate-900">${person.name}</h3>
+                            <p class="text-sm text-slate-500 font-medium">${person.email} • ${person.phone}</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <span class="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">
-                            ${person.events.length} Evento(s)
+                    <div class="flex items-center gap-6">
+                        <span class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest">
+                            ${person.events.length} EVENTO(S)
                         </span>
-                        <span id="icon-${index}" class="text-slate-300 transition-transform">▼</span>
+                        <span id="icon-${index}" class="text-slate-400 text-xl transition-transform">▼</span>
                     </div>
                 </button>
 
-                <div id="content-${index}" class="hidden border-t border-slate-50 bg-slate-50/30 p-6">
+                <div id="content-${index}" class="hidden border-t border-slate-100 bg-slate-50/40 p-8">
                     
-                    <div class="mb-6 p-4 bg-white rounded-2xl border border-slate-100 grid grid-cols-2 gap-4 text-xs">
-                        <p><b class="text-slate-400 uppercase text-[9px]">Profissão:</b> ${person.details.profession || '-'}</p>
-                        <p><b class="text-slate-400 uppercase text-[9px]">Local:</b> ${person.details.neighborhood}, ${person.details.city}</p>
+                    <div class="mb-8 p-6 bg-white rounded-3xl border border-slate-200 flex justify-between items-center shadow-sm">
+                        <div class="text-sm"><b class="text-slate-400 uppercase text-[10px] block mb-1">Profissão</b> <span class="text-lg font-bold text-slate-700">${person.details.profession || '-'}</span></div>
+                        <div class="text-sm text-right"><b class="text-slate-400 uppercase text-[10px] block mb-1">Localização</b> <span class="text-lg font-bold text-slate-700">${person.details.neighborhood}, ${person.details.city}</span></div>
                     </div>
 
-                    <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Histórico de Inscrições</h4>
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Histórico de Inscrições</h4>
                     
-                    <div class="space-y-4">
-                        ${person.events.map((ev: any) => `
-                            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <div class="flex justify-between items-start mb-2">
-                                        <span class="text-sm font-black text-blue-600">Inscrição #${ev.subscribed_id}</span>
-                                        <span class="text-[10px] font-bold ${ev.payment_status === 'approved' ? 'text-green-500' : 'text-orange-500'} uppercase">
-                                            ${ev.payment_status || 'Pendente'}
-                                        </span>
-                                    </div>
-                                    <div class="text-xs space-y-1 text-slate-600">
-                                        <p><b>Data:</b> ${new Date(ev.data_inscricao).toLocaleDateString()}</p>
-                                        <p><b>Valor:</b> R$ ${ev.valor_pago || '0,00'}</p>
-                                        <p><b>Pagador:</b> ${ev.payer_email || 'N/A'}</p>
-                                    </div>
+                    <div class="space-y-6">
+                        ${person.events.map((ev: any) => {
+                            const statusColor = ev.payment_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                            return `
+                            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-md relative group">
+                                <div class="absolute top-8 right-8 ${statusColor} px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter">
+                                    ${ev.payment_status || 'Pendente'}
                                 </div>
 
-                                <div class="bg-slate-50 p-4 rounded-2xl">
-                                    <p class="text-[9px] font-black text-fuchsia-600 uppercase mb-2">Anamnese do Evento</p>
-                                    <div class="text-[11px] text-slate-500 italic">
-                                        ${ev.course_reason ? `"${ev.course_reason.substring(0, 100)}..."` : 'Ficha não preenchida.'}
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                    <div>
+                                        <div class="mb-4">
+                                            <span class="text-xs font-black text-blue-500 uppercase tracking-widest">Inscrição #${ev.subscribed_id}</span>
+                                            <h5 class="text-2xl font-black text-slate-900 mt-1">${ev.event_name || 'Evento não encontrado'}</h5>
+                                            <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${new Date(ev.data_inscricao).toLocaleDateString()}</div>
+                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Valor</b> <span class="font-black text-slate-900">R$ ${ev.valor_pago || '0,00'}</span></div>
+                                            <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b> <span class="truncate block">${ev.payer_email || 'N/A'}</span></div>
+                                        </div>
                                     </div>
-                                    <button onclick="viewFullAnamnesis(${JSON.stringify(ev).replace(/"/g, '&quot;')})" class="mt-2 text-[10px] font-bold text-blue-500 underline">Ver ficha completa</button>
+
+                                    <div class="bg-fuchsia-50/30 p-6 rounded-[2rem] border border-fuchsia-100 flex flex-col justify-between">
+                                        <div>
+                                            <p class="text-[10px] font-black text-fuchsia-600 uppercase mb-3 tracking-widest">Anamnese do Evento</p>
+                                            <p class="text-base text-slate-600 italic leading-relaxed">
+                                                "${ev.course_reason ? ev.course_reason.substring(0, 120) + '...' : 'Ficha não preenchida.'}"
+                                            </p>
+                                        </div>
+                                      <button onclick="openFullAnamnesis(${ev.subscribed_id})" 
+                                            class="mt-4 flex items-center gap-2 text-sm font-black text-fuchsia-600 hover:text-fuchsia-800 transition-colors uppercase tracking-widest">
+                                        Ver ficha completa ➜
+                                    </button>
+                                    </div>
                                 </div>
                             </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             </div>
@@ -519,16 +630,30 @@ const setupFormListener = () => {
 // --- MODAL CRUD ---
 (window as any).openCrudModal = async (target: 'events' | 'units' | 'event-types') => {
     currentTarget = target; 
-
     const modal = document.querySelector<HTMLDivElement>('#modal-crud')!;
+    const modalBody = modal.querySelector('.p-8') || modal.querySelector('#modal-select-list')?.parentElement;
+
+    // --- LINHA DE LIMPEZA/RESTAURAÇÃO ---
+    // Se for a primeira vez, guardamos o formulário. 
+    // Se não for a primeira, restauramos o que guardámos antes de mostrar.
+    if (!modalOriginalHTML && modalBody) {
+        modalOriginalHTML = modalBody.innerHTML; 
+    } else if (modalBody) {
+        modalBody.innerHTML = modalOriginalHTML; // Restaura o formulário original (limpa a ficha)
+    }
+    // ------------------------------------
+
     const title = document.querySelector<HTMLHeadingElement>('#modal-title')!;
     const priceField = document.querySelector<HTMLDivElement>('#field-price')!;
 
     title.innerText = `Gerenciar ${target === 'events' ? 'Eventos' : target === 'units' ? 'Unidades' : 'Tipos de Evento'}`;
-    priceField.classList.toggle('hidden', target !== 'events');
-
-    const select = document.querySelector<HTMLSelectElement>('#modal-select-list')!;
-    select.innerHTML = '<option value="">Carregando...</option>';
+    
+    // IMPORTANTE: Como restauraste o HTML, precisas de re-selecionar os campos 
+    // ou usar seletores dentro desta função, senão o "hidden" do preço não funciona
+    const currentPriceField = modal.querySelector<HTMLDivElement>('#field-price');
+    if (currentPriceField) {
+        currentPriceField.classList.toggle('hidden', target !== 'events');
+    }
 
     modal.classList.remove('hidden');
     await refreshModalList();
