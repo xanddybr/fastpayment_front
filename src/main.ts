@@ -596,47 +596,85 @@ const renderAdminDashboard = async () => {
             injectVersion();
             break;
 
-        case 'agenda':
-            container.innerHTML = `
-                <div class="col-span-full space-y-6">
-                    <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                        <form id="formAgendamento" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">DATA/HORA</label>
-                                <input type="datetime-local" id="datahora" class="w-full border rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" required>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">EVENTO</label>
-                                <div class="flex"><select id="select-evento" class="flex-1 border rounded-l-xl p-2.5 text-sm outline-none" required></select>
-                                <button type="button" onclick="openCrudModal('events')" class="bg-slate-50 px-3 border border-l-0 rounded-r-xl">+</button></div>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">TIPO</label>
-                                <div class="flex"><select id="select-tipo" class="flex-1 border rounded-l-xl p-2.5 text-sm outline-none" required></select>
-                                <button type="button" onclick="openCrudModal('event-types')" class="bg-slate-50 px-3 border border-l-0 rounded-r-xl">+</button></div>
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">UNIDADE</label>
-                                <div class="flex"><select id="select-unidade" class="flex-1 border rounded-l-xl p-2.5 text-sm outline-none" required></select>
-                                <button type="button" onclick="openCrudModal('units')" class="bg-slate-50 px-3 border border-l-0 rounded-r-xl">+</button></div>
-                            </div>
-                            <button type="submit" class="bg-blue-600 text-white p-2.5 rounded-xl font-bold hover:bg-blue-700">Salvar</button>
-                        </form>
+    case 'agenda':
+    // Aumentamos o limite para 1600px para acomodar todos os campos em linha reta
+    container.className = "max-w-[1600px] mx-auto px-6 pt-24 pb-10"; 
+    
+    container.innerHTML = `
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <form id="formAgendamento" class="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Data/Hora</label>
+                        <input type="datetime-local" id="datahora" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" required>
                     </div>
-                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-slate-50 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-                                <tr><th class="p-4">Dia</th><th class="p-4">Data</th><th class="p-4">Evento</th><th class="p-4">Tipo</th><th class="p-4 text-center">Preço</th><th class="p-4 text-center">Unidade</th><th class="p-4 text-center">Ações</th></tr>
-                            </thead>
-                            <tbody id="adminTableBody" class="divide-y divide-slate-50"></tbody>
-                        </table>
+
+                    <div class="md:col-span-1">
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Duração</label>
+                        <input type="number" id="duration-input" min="1" placeholder="min" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
                     </div>
-                </div>
-            `;
-            loadAdminTableData();
-            loadFormOptions(); 
-            setupFormListener();
-            break;
+
+                    <div class="md:col-span-2">
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Evento</label>
+                        <div class="flex">
+                            <select id="select-evento" class="flex-1 border border-slate-200 rounded-l-xl p-2 text-sm outline-none bg-white" required></select>
+                            <button type="button" onclick="openCrudModal('events')" class="bg-slate-50 px-3 border border-l-0 border-slate-200 rounded-r-xl hover:bg-slate-100 font-bold">+</button>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 ml-7">
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Tipo</label>
+                        <div class="flex">
+                            <select id="select-tipo" class="flex-1 border border-slate-200 rounded-l-xl p-2 text-sm outline-none bg-white" required></select>
+                            <button type="button" onclick="openCrudModal('event-types')" class="bg-slate-50 px-2 border border-l-0 border-slate-200 rounded-r-xl font-bold">+</button>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-1 ml-8">
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Unidade</label>
+                        <div class="flex">
+                            <select id="select-unidade" class="flex-1 border border-slate-200 rounded-l-xl p-2 text-sm outline-none bg-white" required></select>
+                            <button type="button" onclick="openCrudModal('units')" class="bg-slate-50 px-3 border border-l-0 border-slate-200 rounded-r-xl font-bold">+</button>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-3 ml-38">
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Vagas</label>
+                        <input type="number" id="vagas-input" min="0" value="0" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
+                    </div>
+
+                    <div class="md:col-span-1">
+                        <button type="submit" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase hover:bg-blue-700 transition-all shadow-md">
+                            Salvar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                        <tr>
+                            <th class="p-4">Dia</th>
+                            <th class="p-4">Data</th>
+                            <th class="p-4">Evento</th>
+                            <th class="p-4">Tipo</th>
+                            <th class="p-4 text-center">Preço</th>
+                            <th class="p-4 text-center">Unidade</th>
+                            <th class="p-4 text-center">Vagas</th>
+                            <th class="p-4 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminTableBody" class="divide-y divide-slate-50"></tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    loadAdminTableData();
+    loadFormOptions(); 
+    setupFormListener();
+    break;
 
         case 'inscricoes':
             container.innerHTML = `
@@ -664,37 +702,59 @@ const renderAdminDashboard = async () => {
 // --- CARREGAMENTO DE DADOS (ADMIN) ---
 const loadAdminTableData = async () => {
     const tbody = document.querySelector('#adminTableBody');
-        if (!tbody) return;
-        try {
-            // Alinhado com seu index.php (sem o /api)
-            const res = await safeFetch(`${API_BASE_URL}/schedules`, { credentials: 'include' });
-            const data = await res.json();
-            
-        const agora = new Date();
+    if (!tbody) return;
 
+    try {
+        const res = await safeFetch(`${API_BASE_URL}/schedules`, { credentials: 'include' });
+        const data = await res.json();
+        
         tbody.innerHTML = data.map((item: any) => {
             const dataAgendamento = new Date(item.scheduled_at);
-            const isExpirado = dataAgendamento < agora;
-            const corTexto = isExpirado ? 'text-red-600 font-bold' : 'text-slate-500';
 
             return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
-                    <td class="p-4 font-bold ${corTexto}">${getDayName(item.scheduled_at)}</td>
-                    <td class="p-4">
-                        <div class="${corTexto}">${dataAgendamento.toLocaleDateString('pt-BR')} - ${dataAgendamento.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</div>
+                    <td class="p-4 font-bold text-slate-900">
+                        ${getDayName(item.scheduled_at)}
                     </td>
-                    <td class="p-4 font-bold ${isExpirado ? 'text-red-600' : 'text-slate-900'}">${item.event_name}</td>
-                    <td class="p-4 font-bold ${isExpirado ? 'text-red-600' : 'text-blue-600'}">${item.type_name || '-'}</td>
-                    <td class="p-4 font-black ${isExpirado ? 'text-red-600' : 'text-blue-600'}">R$ ${item.event_price}</td>
-                    <td class="p-4 font-black ${isExpirado ? 'text-red-600' : 'text-blue-600'}">${item.unit_name}</td>
+
+                    <td class="p-4 text-slate-600">
+                        ${dataAgendamento.toLocaleDateString('pt-BR')} - ${dataAgendamento.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}h
+                    </td>
+
+                    <td class="p-4 font-bold text-slate-900">
+                        ${item.event_name}
+                    </td>
+
+                    <td class="p-4 text-blue-600 font-medium text-sm">
+                        ${item.type_name || '-'}
+                    </td>
+
+                    <td class="p-4 text-center font-black text-slate-700">
+                        R$ ${item.event_price}
+                    </td>
+
+                    <td class="p-4 text-center font-bold text-slate-500 uppercase text-[11px]">
+                        ${item.unit_name}
+                    </td>
+
                     <td class="p-4 text-center">
-                        <button onclick="deleteSchedule(${item.schedule_id})" class="text-red-400 hover:text-red-600 font-bold transition-colors">Excluir</button>
+                        <span class="px-3 py-1 rounded-full font-black text-xs ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
+                            ${item.vacancies}
+                        </span>
+                    </td>
+
+                    <td class="p-4 text-center">
+                        <button onclick="deleteSchedule(${item.schedule_id})" 
+                                class="text-red-400 hover:text-red-600 font-bold transition-colors">
+                            Excluir
+                        </button>
                     </td>
                 </tr>
             `;
         }).join('');
-    } catch { 
-        tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center">Erro ao carregar dados.</td></tr>'; 
+    } catch (e) { 
+        // Colspan ajustado para 8 colunas
+        tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-red-500 font-bold">Erro ao carregar dados.</td></tr>'; 
     }
 };
 
@@ -738,7 +798,8 @@ const setupFormListener = () => {
             event_id: (document.querySelector('#select-evento') as HTMLSelectElement).value,
             unit_id: (document.querySelector('#select-unidade') as HTMLSelectElement).value,
             event_type_id: (document.querySelector('#select-tipo') as HTMLSelectElement).value,
-            vacancies: 1,
+            // CAPTURA O VALOR DO NOVO CAMPO:
+            vacancies: (document.querySelector('#vagas-input') as HTMLInputElement).value,
             status: 'available'
         };
 
@@ -753,9 +814,6 @@ const setupFormListener = () => {
             alert("Salvo com sucesso!"); 
             loadAdminTableData(); 
             form.reset();
-        } else {
-            const error = await res.json();
-            alert("Erro ao salvar: " + (error.error || "Verifique os dados"));
         }
     });
 };
