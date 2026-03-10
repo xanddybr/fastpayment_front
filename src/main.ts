@@ -122,6 +122,19 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
         }
 
         container.innerHTML = schedules.map((item: any) => {
+            // Lógica para o Horário (Início e Fim)
+            const dataInicio = new Date(item.scheduled_at);
+            const duracao = parseInt(item.duration_minutes) || 0;
+            const dataFim = new Date(dataInicio.getTime() + duracao * 60000);
+
+            const horaInicio = dataInicio.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const horaFim = dataFim.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            
+            // Texto do horário: "14:00h às 15:30h" ou apenas "14:00h"
+            const horarioCompleto = duracao > 0 
+                ? `${horaInicio}h às ${horaFim}h` 
+                : `${horaInicio}h`;
+
             // Lógica para o Badge de Vagas
             const hasVacancies = item.vacancies > 0;
             const vacanciesLabel = hasVacancies 
@@ -166,7 +179,7 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
                         <span class="text-violet-500">📅</span> ${getDayName(item.scheduled_at)}, ${new Date(item.scheduled_at).toLocaleDateString('pt-BR')}
                     </p>
                     <p class="text-sm text-slate-400 flex items-center gap-2 italic">
-                        <span class="text-fuchsia-500 text-xs">⏰</span> ${new Date(item.scheduled_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}h
+                        <span class="text-fuchsia-500 text-xs">⏰</span> ${horarioCompleto}
                     </p>
                 </div>
                 
@@ -525,7 +538,7 @@ const renderAdminDashboard = async () => {
         header.innerHTML = `
             <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
                 <nav class="flex items-center gap-8 h-full">
-                    <span class="font-black text-slate-900 text-xl tracking-tighter mr-4">fastPayment <span class="app-version text-[13px] text-gray-400"></span></span>
+                    <span class="font-black text-slate-900 text-xl tracking-tighter mr-4"><span class="text-slate-400">fast</span>Payment <span class="app-version text-[13px] text-gray-400"></span></span>
                     <button onclick="changeAdminTab('inicio')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Início</button>
                     <button onclick="changeAdminTab('agenda')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Agenda</button>
                     <button onclick="changeAdminTab('inscricoes')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Inscrições</button>
@@ -587,7 +600,7 @@ const renderAdminDashboard = async () => {
                 <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
                     <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center text-4xl mb-6">👋</div>
                     <h1 class="text-4xl font-black text-slate-900 mb-2">Bem-vindo, ${currentName}!</h1>
-                    <p class="text-slate-500 max-w-md">Selecione uma opção no menu superior para começar a gerenciar sua plataforma.</p> 
+                    <p class="text-slate-500 max-w-md">Selecione uma opção no menu superior para começar a gerenciar sua agenda.</p> 
                     <div class="mt-4 text-center">
                         <span class="app-version text-[10px] text-gray-400"></span>
                     </div>
@@ -705,56 +718,78 @@ const loadAdminTableData = async () => {
     if (!tbody) return;
 
     try {
+        // Busca os dados da agenda no backend
         const res = await safeFetch(`${API_BASE_URL}/schedules`, { credentials: 'include' });
         const data = await res.json();
         
         tbody.innerHTML = data.map((item: any) => {
-            const dataAgendamento = new Date(item.scheduled_at);
+            // 1. Tratamento de Datas e Horários
+            const dataInicio = new Date(item.scheduled_at);
+            const duration = parseInt(item.duration_minutes) || 0;
+            
+            // Calcula a hora de término somando a duração (em milissegundos)
+            const dataFim = new Date(dataInicio.getTime() + duration * 60000);
+
+            const horaInicio = dataInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const horaFim = dataFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            // Formatação da exibição da hora (mostra o intervalo se houver duração)
+            const exibicaoHorario = duration > 0 
+                ? `${horaInicio} - ${horaFim}` 
+                : `${horaInicio}`;
 
             return `
-                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 text-slate-700">
                     <td class="p-4 font-bold text-slate-900">
                         ${getDayName(item.scheduled_at)}
                     </td>
 
-                    <td class="p-4 text-slate-600">
-                        ${dataAgendamento.toLocaleDateString('pt-BR')} - ${dataAgendamento.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}h
+                    <td class="p-4 whitespace-nowrap">
+                        <div class="font-medium">${dataInicio.toLocaleDateString('pt-BR')} - ${exibicaoHorario}</div>
                     </td>
 
                     <td class="p-4 font-bold text-slate-900">
                         ${item.event_name}
                     </td>
 
-                    <td class="p-4 text-blue-600 font-medium text-sm">
+                    <td class="p-4 text-blue-600 font-semibold">
                         ${item.type_name || '-'}
                     </td>
 
-                    <td class="p-4 text-center font-black text-slate-700">
+                    <td class="p-4 text-center font-black text-slate-900">
                         R$ ${item.event_price}
                     </td>
 
-                    <td class="p-4 text-center font-bold text-slate-500 uppercase text-[11px]">
+                    <td class="p-4 text-center font-bold text-slate-500 uppercase text-[11px] tracking-tight">
                         ${item.unit_name}
                     </td>
 
                     <td class="p-4 text-center">
-                        <span class="px-3 py-1 rounded-full font-black text-xs ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
-                            ${item.vacancies}
+                        <span class="px-3 py-1 rounded-full font-black text-[10px] uppercase ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
+                            ${item.vacancies} Vagas
                         </span>
                     </td>
 
                     <td class="p-4 text-center">
                         <button onclick="deleteSchedule(${item.schedule_id})" 
-                                class="text-red-400 hover:text-red-600 font-bold transition-colors">
+                                class="text-red-400 hover:text-red-600 font-bold transition-colors p-2 hover:bg-red-50 rounded-lg">
                             Excluir
                         </button>
                     </td>
                 </tr>
             `;
         }).join('');
+
     } catch (e) { 
-        // Colspan ajustado para 8 colunas
-        tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-red-500 font-bold">Erro ao carregar dados.</td></tr>'; 
+        // Colspan ajustado para as 8 colunas da tabela
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="p-10 text-center">
+                    <div class="text-red-500 font-bold">Erro ao carregar dados da agenda.</div>
+                    <div class="text-xs text-slate-400">Verifique a conexão com a API.</div>
+                </td>
+            </tr>
+        `; 
     }
 };
 
@@ -793,13 +828,14 @@ const setupFormListener = () => {
     form?.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const payload = {
+       const payload = {
             scheduled_at: (document.querySelector('#datahora') as HTMLInputElement).value,
             event_id: (document.querySelector('#select-evento') as HTMLSelectElement).value,
             unit_id: (document.querySelector('#select-unidade') as HTMLSelectElement).value,
             event_type_id: (document.querySelector('#select-tipo') as HTMLSelectElement).value,
-            // CAPTURA O VALOR DO NOVO CAMPO:
             vacancies: (document.querySelector('#vagas-input') as HTMLInputElement).value,
+            // CAPTURA A DURAÇÃO AQUI:
+            duration_minutes: (document.querySelector('#duration-input') as HTMLInputElement).value,
             status: 'available'
         };
 
