@@ -107,7 +107,7 @@ const getDayName = (dateString: string) => {
 // --- AGENDA PÚBLICA (ATUALIZADA COM VAGAS) ---
 const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
    
-    const isManutencao = true;  // --- 1. CHAVE GERAL (true = esconde agenda / false = mostra agenda) ---
+    const isManutencao = false;  // --- 1. CHAVE GERAL (true = esconde agenda / false = mostra agenda) ---
 
     // --- 2. PEGA OS ELEMENTOS ---
     const stepSelection = document.querySelector<HTMLElement>('#step-selection');
@@ -172,6 +172,7 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
             const btnAction = hasVacancies ? `onclick="selectEvent(${item.schedule_id}, '${item.event_name}', ${item.vacancies})"` : "";
 
             return `
+            
             <div class="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-2xl hover:border-fuchsia-600 transition-all duration-300 group relative overflow-hidden">
                 
                 <div class="flex justify-between items-start mb-4">
@@ -673,7 +674,7 @@ const renderAdminDashboard = async () => {
 
                     <div class="md:col-span-3 ml-38">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Vagas</label>
-                        <input type="number" id="vagas-input" min="0" value="0" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
+                        <input type="number" id="vagas-input" min="0" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
                     </div>
 
                     <div class="md:col-span-1">
@@ -849,14 +850,19 @@ const setupFormListener = () => {
 
        const payload = {
             scheduled_at: (document.querySelector('#datahora') as HTMLInputElement).value,
-            event_id: (document.querySelector('#select-evento') as HTMLSelectElement).value,
-            unit_id: (document.querySelector('#select-unidade') as HTMLSelectElement).value,
-            event_type_id: (document.querySelector('#select-tipo') as HTMLSelectElement).value,
-            vacancies: (document.querySelector('#vagas-input') as HTMLInputElement).value,
-            // CAPTURA A DURAÇÃO AQUI:
-            duration_minutes: (document.querySelector('#duration-input') as HTMLInputElement).value,
+
+            event_id: parseInt((document.querySelector('#select-evento') as HTMLSelectElement).value, 10),
+            unit_id: parseInt((document.querySelector('#select-unidade') as HTMLSelectElement).value, 10),
+            event_type_id: parseInt((document.querySelector('#select-tipo') as HTMLSelectElement).value, 10),
+            
+            vacancies: parseInt((document.querySelector('#vagas-input') as HTMLInputElement).value, 10) || 0,
+            duration_minutes: parseInt((document.querySelector('#duration-input') as HTMLInputElement).value, 10) || 0,
+            
             status: 'available'
         };
+
+        console.log(payload);
+        alert(payload)
 
         const res = await safeFetch(`${API_BASE_URL}/schedules`, {
             method: 'POST',
@@ -930,9 +936,6 @@ footer.innerHTML = `
     <span class="opacity-30 text-[9px] text-white font-mono uppercase tracking-widest">
         MISTURA DE LUZ <span class="app-version"></span>
     </span>
-    <a href="login.html" class="text-[10px] text-slate-500 hover:text-fuchsia-400 transition-colors font-bold uppercase tracking-tighter decoration-dotted underline underline-offset-4">
-        Acesso Restrito
-    </a>
 `;
 injectVersion();
 
