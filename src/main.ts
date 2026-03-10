@@ -106,7 +106,26 @@ const getDayName = (dateString: string) => {
 // --- AGENDA PÚBLICA (COM FILTROS) ---
 // --- AGENDA PÚBLICA (ATUALIZADA COM VAGAS) ---
 const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
+   
+    const isManutencao = true;  // --- 1. CHAVE GERAL (true = esconde agenda / false = mostra agenda) ---
+
+    // --- 2. PEGA OS ELEMENTOS ---
+    const stepSelection = document.querySelector<HTMLElement>('#step-selection');
+    const avisoManutencao = document.querySelector<HTMLElement>('#agenda-manutencao');
+
+    // --- 3. A MÁGICA (Toggle) ---
+    // Se isManutencao for true, adiciona 'hidden' no step e remove do aviso
+    stepSelection?.classList.toggle('hidden', isManutencao);
+    avisoManutencao?.classList.toggle('hidden', !isManutencao);
+
+    // Se estiver em manutenção, para a execução aqui e não faz mais nada
+    if (isManutencao) return;
+
+    // ... daqui para baixo segue seu código original de busca na API ...
     const container = document.querySelector<HTMLDivElement>('#events-container')!;
+    container.innerHTML = '<p class="text-center col-span-full text-slate-400">Buscando horários...</p>';
+    
+    
     if (!container) return;
     
     container.innerHTML = '<p class="text-center col-span-full text-slate-400">Buscando horários...</p>';
