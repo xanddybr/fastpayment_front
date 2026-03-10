@@ -8,7 +8,17 @@ const API_BASE_URL = window.location.hostname === 'localhost'
 const APP_VERSION = "v1.0.0";
 
 let inscriptionsCache: any[] = [];
-let modalOriginalHTML: string = ''; // Define como string vazia para começar
+let modalOriginalHTML: string = ''; 
+let selectedEvent = { id: 0, name: '' };
+let currentTarget: 'events' | 'units' | 'event-types' = 'events';
+
+const getSections = () => ({
+    selection: document.querySelector<HTMLDivElement>('#step-selection'),
+    auth:      document.querySelector<HTMLDivElement>('#step-1'),
+    otp:       document.querySelector<HTMLDivElement>('#step-2'),
+    registration: document.querySelector<HTMLDivElement>('#step-registration'), // FUNDAMENTAL
+    login:     document.querySelector<HTMLDivElement>('#login')
+});
      
 // 1. Defina a função safeFetch logo abaixo das suas constantes de URL
 const safeFetch = async (url: string, options: RequestInit = {}) => {
@@ -33,12 +43,6 @@ const injectVersion = () => {
     });
 };
 
-// --- ESTADO DA APLICAÇÃO ---
-let selectedEvent = { id: 0, name: '' };
-let currentTarget: 'events' | 'units' | 'event-types' = 'events';
-
-
-
 // --- SELEÇÃO DE ELEMENTOS ---
 const sections = {
     selection: document.querySelector<HTMLDivElement>('#step-selection')!,
@@ -62,25 +66,21 @@ const handleRouting = async () => {
     const hash = window.location.hash;
     
     hideAllSections();
+    const activeSections = getSections();
 
-    // 1. Rota de Login ou Admin (DESLIGA o background)
     if (path.includes('login.html') || hash === '#login' || hash === '#admin') {
         document.body.classList.remove('bg-reiki');
-        
         if (hash === '#admin') {
-            const isAuthenticated = await checkAuth();
-            isAuthenticated ? renderAdminDashboard() : window.location.href = 'login.html';
+            const res = await safeFetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
+            res.ok ? renderAdminDashboard() : window.location.href = 'login.html';
         } else {
-            if (sections.login) sections.login.classList.remove('hidden');
+            activeSections.login?.classList.remove('hidden');
         }
-    } 
-    // 2. Rota da Agenda Pública (LIGA o background)
-    else {
-        document.body.classList.add('bg-reiki'); // Ativa o Reiki apenas aqui
-        if (sections.selection) sections.selection.classList.remove('hidden');
+    } else {
+        document.body.classList.add('bg-reiki');
+        activeSections.selection?.classList.remove('hidden');
         loadEvents();
     }
-
     injectVersion();
 };
 
@@ -92,7 +92,8 @@ const checkAuth = async () => {
 };
 
 const hideAllSections = () => {
-    Object.values(sections).forEach(s => s?.classList.add('hidden'));
+    const activeSections = getSections();
+    Object.values(activeSections).forEach(s => s?.classList.add('hidden'));
 };
 
 const getDayName = (dateString: string) => {
@@ -103,6 +104,7 @@ const getDayName = (dateString: string) => {
 };
 
 // --- AGENDA PÚBLICA (COM FILTROS) ---
+// --- AGENDA PÚBLICA (ATUALIZADA COM VAGAS) ---
 const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     const container = document.querySelector<HTMLDivElement>('#events-container')!;
     if (!container) return;
@@ -110,7 +112,6 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     container.innerHTML = '<p class="text-center col-span-full text-slate-400">Buscando horários...</p>';
     
     try {
-        
         const url = `${API_BASE_URL}/api/schedules?slug=${eventSlug}&type=${typeSlug}`;
         const response = await fetch(url, { credentials: 'include' });
         const schedules = await response.json();
@@ -120,23 +121,44 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
             return;
         }
 
-        container.innerHTML = schedules.map((item: any) => `
-            <div class="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-2xl hover:border-fuchsia-600 transition-all duration-300 group">
+        container.innerHTML = schedules.map((item: any) => {
+            // Lógica para o Badge de Vagas
+            const hasVacancies = item.vacancies > 0;
+            const vacanciesLabel = hasVacancies 
+                ? `<span class="text-[12px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20 uppercase tracking-tighter">
+                    ${item.vacancies} vagas restantes
+                   </span>`
+                : `<span class="text-[9px] font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full border border-red-400/20 uppercase tracking-tighter">
+                    Esgotado
+                   </span>`;
+
+            // Configuração do Botão
+            const btnClass = hasVacancies 
+                ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 active:scale-95" 
+                : "bg-slate-800 text-slate-500 cursor-not-allowed opacity-50";
+            const btnText = hasVacancies ? "Inscreva-se Agora!" : "Vagas Esgotadas";
+            const btnAction = hasVacancies ? `onclick="selectEvent(${item.schedule_id}, '${item.event_name}', ${item.vacancies})"` : "";
+
+            return `
+            <div class="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-2xl hover:border-fuchsia-600 transition-all duration-300 group relative overflow-hidden">
                 
                 <div class="flex justify-between items-start mb-4">
                     <span class="bg-violet-600/20 text-violet-400 text-[10px] font-bold px-3 py-1 rounded-full border border-violet-600/30 uppercase tracking-widest">
                         ${item.type_name || 'Geral'}
                     </span>
-                    <span class="text-[10px] text-slate-600 font-black uppercase tracking-tighter">${item.unit_name}</span>
+                    ${vacanciesLabel}
                 </div>
 
                 <h3 class="text-xl font-black text-fuchsia-500 mb-1">
                     ${item.event_name}
                 </h3>
                 
-                <div class="flex items-baseline gap-1 mb-6">
-                    <span class="text-xs text-slate-500 font-bold uppercase">R$</span>
-                    <span class="text-2xl font-black text-slate-100">${item.event_price}</span>
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-xs text-slate-500 font-bold uppercase">R$</span>
+                        <span class="text-2xl font-black text-slate-100">${item.event_price}</span>
+                    </div>
+                    <span class="text-[15px] text-slate-600 font-black uppercase tracking-tighter">${item.unit_name}</span>
                 </div>
                 
                 <div class="space-y-2 mb-6 border-l-2 border-violet-600/30 pl-4">
@@ -148,15 +170,126 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
                     </p>
                 </div>
                 
-                <button onclick="selectEvent(${item.schedule_id}, '${item.event_name}')" 
-                    class="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:from-violet-500 hover:to-fuchsia-500 transition-all transform active:scale-95">
-                    Comprar Agora!
+                <button ${btnAction} class="w-full ${btnClass} text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all transform">
+                    ${btnText}
                 </button>
             </div>
-        `).join('');
+            `;
+        }).join('');
     } catch (e) { 
         container.innerHTML = '<p class="text-center col-span-full text-red-500">Erro ao carregar agenda.</p>'; 
     }
+};
+
+const setupRegistrationSubmit = () => {
+    const form = document.querySelector<HTMLFormElement>('#form-complete-registration');
+    if (!form) return;
+
+    // Removemos qualquer listener antigo para evitar envios duplicados
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+
+        // 1. Recupera o ID do evento guardado no clique inicial
+        const scheduleId = (window as any).selectedEventId;
+
+        // 2. LOG DE DEBUG: Verifique isso no F12 do navegador
+        console.log("=== DEBUG INSCRIÇÃO ===");
+        console.log("ID do Horário (schedule_id):", scheduleId);
+        console.log("Tipo do ID:", typeof scheduleId);
+
+        // 3. Verificação Crítica: Se o ID for null ou undefined, para aqui.
+        if (!scheduleId) {
+            console.error("ERRO: O schedule_id está vazio!");
+            alert("Erro de sistema: O ID do evento se perdeu. Por favor, volte à tela inicial e selecione o curso novamente.");
+            return;
+        }
+
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+
+        // 4. Montagem do Payload (Exatamente como o seu Model Person.php espera)
+        const payload = {
+            // Identificação (Tabela persons)
+            student_full_name: data.student_full_name,
+            student_email: data.student_email,
+            
+            // Detalhes (Tabela person_details)
+            student_phone: data.student_phone,
+            activity_professional: data.activity_professional,
+            neighborhood: data.neighborhood,
+            city: data.city,
+            
+            // Vínculo (Tabela events_subscribed)
+            schedule_id: scheduleId, 
+            
+            // Ficha Técnica (Tabela anamnesis)
+            is_medium: data.is_medium ? 1 : 0,
+            is_tule_member: data.is_tule_member ? 1 : 0,
+            first_time: data.first_time ? 1 : 0,
+            religion_mention: data.religion_mention,
+            course_reason: data.course_reason,
+            obs_motived: data.obs_motived,
+            expectations: "Inscrição via Formulário SPA"
+        };
+
+        console.log("Payload enviado para a API:", payload);
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/public/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                console.log("Sucesso no Servidor:", result);
+                alert("Inscrição concluída com sucesso! O aluno já está registrado e a vaga foi descontada.");
+                
+                // Limpeza e Redirecionamento
+                window.location.hash = '#step-selection'; 
+                window.location.reload(); 
+            } else {
+                console.error("Erro retornado pela API:", result);
+                alert("Erro ao salvar inscrição: " + (result.mensagem || "Verifique os dados."));
+            }
+        } catch (error) {
+            console.error("Erro na comunicação fetch:", error);
+            alert("Não foi possível conectar ao servidor. Verifique se o backend está rodando.");
+        }
+    };
+};
+
+// --- FUNÇÃO SHOW REGISTRATION FORM (REUTILIZANDO LÓGICA DA VITRINE) ---
+(window as any).showRegistrationForm = (item: any) => {
+    hideAllSections();
+    
+    const activeSections = getSections();
+    if (activeSections.registration) {
+        activeSections.registration.classList.remove('hidden');
+    }
+
+    // Preenchimento dos campos da Sessão 1
+    const eventTitle = document.querySelector('#reg-event-name');
+    const eventType = document.querySelector('#reg-event-type');
+    const eventUnit = document.querySelector('#reg-event-unit');
+    const eventDate = document.querySelector('#reg-event-date');
+
+    if (eventTitle) eventTitle.textContent = item.event_name || item.name;
+    if (eventType) eventType.textContent = item.type_name || item.type;
+    if (eventUnit) eventUnit.textContent = item.unit_name || item.unit;
+    
+    if (eventDate && (item.scheduled_at || item.rawDate)) {
+        const dataRef = item.scheduled_at || item.rawDate;
+        const diaSemana = getDayName(dataRef); 
+        const dataFormatada = new Date(dataRef).toLocaleDateString('pt-BR');
+        const horaFormatada = new Date(dataRef).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+        eventDate.innerHTML = `<span>📅</span> ${diaSemana}, ${dataFormatada} às ${horaFormatada}h`;
+    }
+
+    setupRegistrationSubmit(); // Ativa o formulário
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // --- FUNÇÃO PARA VER FICHA COMPLETA ---
@@ -691,13 +824,24 @@ footer.innerHTML = `
 injectVersion();
 
 // --- AUTH ACTIONS ---
-(window as any).selectEvent = (id: number, name: string) => {
-    selectedEvent = { id, name };
+// Esta função é chamada quando você clica no card da agenda
+(window as any).selectEvent = (id: number, name: string, vacancies: number) => {
+    if (vacancies <= 0) {
+        alert("Desculpe, este evento acabou de esgotar as vagas.");
+        return;
+    }
+
+    (window as any).selectedEventId = id; 
+    console.log("📌 Evento selecionado com sucesso! ID guardado:", id);
+
+    const eventNameDisplay = document.querySelector('#reg-event-name');
+    if (eventNameDisplay) eventNameDisplay.textContent = name;
+
     hideAllSections();
-    sections.auth.classList.remove('hidden');
-    const title = sections.auth.querySelector('h2');
-    if (title) title.textContent = `Inscrição: ${name}`;
+    const step1 = document.querySelector<HTMLDivElement>('#step-1');
+    if (step1) step1.classList.remove('hidden');
 };
+
 
 (window as any).makeLogout = async () => {
     try {

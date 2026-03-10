@@ -14,13 +14,13 @@
             <div class="flex justify-center">
                 <img src="/images/logo.png" alt="Logo" class="h-32 w-auto object-contain">
             </div>
-            <p class="text-slate-500 mt-2 italic">Painel de Controle Administrativo</p>
+            <p class="text-slate-500 mt-2 italic">Painel de Gerenciamento da agenda</p>
           </div>
           <div class="space-y-4">
             <input type="email" id="admin-email" placeholder="E-mail" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
             <input type="password" id="admin-password" placeholder="Senha" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
             <button onclick="makeLogin()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-slate-800 transition-all">
-              Entrar no Painel
+              Entrar
             </button>
           </div>
           <div class="mt-4 text-center text-[13px] text-slate-400">
@@ -30,8 +30,8 @@
 
         <section id="step-selection" class="hidden space-y-8">
           <header class="text-center mb-10">
-            <h1 class="text-4xl font-black text-slate-900 tracking-tight">Agenda de Eventos <span class="app-version text-[10px] text-gray-400"></span></h1>
-            <p class="text-slate-500 mt-2 text-lg">Selecione o evento desejado abaixo</p> 
+            <h1 class="text-4xl font-black text-slate-400">Agenda de Eventos <span class="app-version text-[10px] text-gray-400"></span></h1>
+            <p class="text-slate-500 mt-2 text-lg">Selecione o evento desejado!</p> 
           </header>
           <div class="flex justify-between items-center">
              <a href="login.html" class="text-slate-400 hover:text-fuchsia-500 text-[11px] font-black uppercase tracking-widest transition-colors">>>> ACESSO ADMIN</a>
@@ -62,8 +62,116 @@
           </div>
         </section>
 
-      </main>
+<section id="step-registration" class="hidden max-w-3xl mx-auto space-y-8 pb-20">
+    
+    <div class="text-center mb-8">
+        <span class="bg-green-500/10 text-green-500 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-500/20">Pagamento Identificado</span>
+        <h2 class="text-4xl font-black text-slate-500 mt-4">Conclua sua Inscrição</h2>
+        <p class="text-slate-500">Confirme os dados do evento e complete o perfil do aluno.</p>
     </div>
+
+    <form id="form-complete-registration" class="space-y-6">
+        
+        <div class="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl text-white">
+    <div class="flex items-center gap-3 mb-6">
+        <span class="w-8 h-8 bg-fuchsia-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+        <h3 class="font-black uppercase text-sm tracking-widest text-fuchsia-400">Detalhes da Inscrição</h3>
+    </div>
+    <div class="space-y-2">
+        <p class="text-sm text-slate-400">Você esta realizando a inscrição para:</p>
+        <h4 id="reg-event-name" class="text-2xl font-black">Carregando evento...</h4>
+        
+        <div class="flex flex-wrap gap-3 mt-4">
+            <span id="reg-event-type" class="bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold uppercase border border-white/5"></span>
+            <span id="reg-event-unit" class="bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold uppercase border border-white/5"></span>
+        </div>
+        
+        <p id="reg-event-date" class="text-sm text-slate-300 mt-4 flex items-center gap-2 font-medium"></p>
+    </div>
+</div>
+
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                <h3 class="font-black text-slate-800 uppercase text-sm tracking-widest">Informações do Aluno</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nome Completo do Aluno</label>
+                    <input type="text" name="student_full_name" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="Nome de quem fará o curso">
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">E-mail do Aluno</label>
+                    <input type="email" name="student_email" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="email@do-aluno.com">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">WhatsApp do Aluno</label>
+                    <input type="tel" name="student_phone" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="(00) 00000-0000">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Profissão / Atividade</label>
+                    <input type="text" name="activity_professional" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required>
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Bairro</label>
+                    <input type="text" name="neighborhood" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required>
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Cidade</label>
+                    <input type="text" name="city" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                <h3 class="font-black text-slate-800 uppercase text-sm tracking-widest">Anamnesis</h3>
+            </div>
+            
+            <div class="space-y-6 text-slate-900">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                        <input type="checkbox" name="is_medium" value="1" class="w-5 h-5 accent-violet-600 mr-3">
+                        <span class="text-sm font-bold text-slate-700">Sou Médium</span>
+                    </label>
+                    <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                        <input type="checkbox" name="is_tule_member" value="1" class="w-5 h-5 accent-violet-600 mr-3">
+                        <span class="text-sm font-bold text-slate-700">Membro TULE</span>
+                    </label>
+                    <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                        <input type="checkbox" name="first_time" value="1" class="w-5 h-5 accent-violet-600 mr-3">
+                        <span class="text-sm font-bold text-slate-700">Minha primeira vez</span>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Religião / Crença (Mention)</label>
+                    <input type="text" name="religion_mention" placeholder="Ex: Espírita, Católico, Não possuo..." class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-violet-600 transition-all">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Motivação</label>
+                    <textarea name="course_reason" rows="3" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-violet-600 transition-all" required placeholder="Sua motivação..."></textarea>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Observações Detalhadas</label>
+                    <textarea name="obs_motived" rows="2" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-violet-600 transition-all" placeholder="Algo mais?"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="w-full bg-slate-900 text-white font-black py-6 rounded-[2rem] shadow-2xl hover:bg-black transition-all uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95">
+            Confirmar e Finalizar Inscrição <span class="text-xl">🚀</span>
+        </button>
+    </form>
+</section>
 
     <div id="modal-crud" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
@@ -98,8 +206,6 @@
           </div>
       </div>
     </div>
-    
-    <button onclick="document.getElementById('modal-crud').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
 
     <div id="modal-anamnese" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
     <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden relative">
