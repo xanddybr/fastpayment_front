@@ -169,7 +169,7 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
                 ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 active:scale-95" 
                 : "bg-slate-800 text-slate-500 cursor-not-allowed opacity-50";
             const btnText = hasVacancies ? "Inscreva-se Agora!" : "Vagas Esgotadas";
-            const btnAction = hasVacancies ? `onclick="selectEvent(${item.schedule_id}, '${item.event_name}', ${item.vacancies})"` : "";
+            const btnAction = hasVacancies ? `onclick="selectEvent(${JSON.stringify(item)})"` : "";
 
             return `
             
@@ -214,25 +214,167 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     }
 };
 
+const nextStep = (current: number) => {
+    const currentSection = document.querySelector(`#reg-step-${current}`);
+    const nextSection = document.querySelector(`#reg-step-${current + 1}`);
+    
+    if (currentSection && nextSection) {
+        currentSection.classList.add('hidden');
+        nextSection.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+};
+
+const prevStep = (current: number) => {
+    const currentSection = document.querySelector(`#reg-step-${current}`);
+    const prevSection = document.querySelector(`#reg-step-${current - 1}`);
+    
+    if (currentSection && prevSection) {
+        currentSection.classList.add('hidden');
+        prevSection.classList.remove('hidden');
+    }
+};
+
+const finalizarInscricao = async () => {
+    const form = document.querySelector<HTMLFormElement>('#form-inscricao')!;
+    const formData = new FormData(form);
+    const rawData = Object.fromEntries(formData);
+
+    const payload = {
+        // Dados da Pessoa
+        full_name: rawData.full_name,
+        email: rawData.email,
+        phone: rawData.phone,
+        profession: rawData.profession,
+        location: `${rawData.neighborhood}, ${rawData.city}`,
+        
+        // Dados da Inscrição
+        schedule_id: (window as any).selectedEventId,
+        
+        // Dados da Anamnese (Ficha Técnica)
+        is_medium: rawData.is_medium === 'on' ? 1 : 0,
+        is_tule_member: rawData.is_tule_member === 'on' ? 1 : 0,
+        religion: rawData.religion,
+        course_reason: rawData.course_reason,
+        expectations: rawData.expectations,
+        obs_motived: rawData.obs_motived,
+        first_time: rawData.first_time === 'on' ? 1 : 0
+    };
+
+    // Chamada para o seu Controller de Inscrição
+    const res = await fetch(`${API_BASE_URL}/register-student`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        alert("✨ Inscrição concluída! A nossa equipa entrará em contacto em breve.");
+        window.location.href = "/agenda"; // Passo 6: Retorno para a agenda
+    }
+};
+
+btnSend.addEventListener('click', async () => {
+    const email = emailInput.value.trim();
+
+    if (!email || !email.includes('@')) {
+        alert("Por favor, insira um e-mail válido.");
+        return;
+    }
+
+    // Desativa o botão para evitar cliques duplos
+    btnSend.disabled = true;
+    btnSend.innerHTML = "Verificando...";
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/check-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email: email,
+                schedule_id: (window as any).selectedEventId 
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.has_paid) {
+            // Caso 1: Já existe pagamento aprovado sem inscrição
+            if (confirm("Identificamos um pagamento aprovado para este e-mail. Deseja realizar a inscrição agora ou prefere efetuar um novo pagamento para outra vaga?")) {
+                // Usuário escolheu usar o pagamento existente
+                (window as any).isPrePaid = true;
+                (window as any).showRegistrationForm((window as any).selectedSchedule);
+            } else {
+                // Usuário escolheu pagar novamente (nova vaga)
+                prosseguirParaCheckout();
+            }
+        } else {
+            // Caso 2: Não há pagamentos aprovados, vai para o fluxo normal
+            prosseguirParaCheckout();
+        }
+
+    } catch (error) {
+        console.error("Erro na validação:", error);
+        alert("Erro ao validar e-mail. Tente novamente.");
+    } finally {
+        btnSend.disabled = false;
+        btnSend.innerHTML = "Validar E-mail e Prosseguir →";
+    }
+});
+
+// Função auxiliar para o Passo 3 do Roteiro
+const prosseguirParaCheckout = () => {
+    (window as any).isPrePaid = false;
+    // Aqui chamaremos a função que você já deve ter de Checkout do Mercado Pago
+    // enviando (window as any).selectedSchedule
+    console.log("Encaminhando para Passo 3: Checkout...");
+    // await iniciarCheckoutMercadoPago((window as any).selectedSchedule);
+};
+
+emailInput?.addEventListener('blur', async () => {
+    const email = emailInput.value.trim();
+    
+    // MUDANÇA 1: Reset visual e da flag sempre que o e-mail muda
+    (window as any).isPrePaid = false;
+    const submitBtn = document.querySelector('#btn-submit-registration') as HTMLButtonElement;
+    if (submitBtn) {
+        submitBtn.innerHTML = "Finalizar e Ir para Pagamento";
+        submitBtn.classList.replace('bg-emerald-600', 'bg-violet-600');
+    }
+
+    if (email.length > 5 && email.includes('@')) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/check-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            });
+            
+            const result = await response.json();
+
+            if (result.has_paid) {
+                if (submitBtn) {
+                    submitBtn.innerHTML = "✅ Pagamento Identificado - Agendar Agora";
+                    submitBtn.classList.replace('bg-violet-600', 'bg-emerald-600');
+                    (window as any).isPrePaid = true;
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao verificar pagamento prévio:", error);
+        }
+    }
+});
+
 const setupRegistrationSubmit = () => {
     const form = document.querySelector<HTMLFormElement>('#form-complete-registration');
     if (!form) return;
 
-    // Removemos qualquer listener antigo para evitar envios duplicados
     form.onsubmit = async (e) => {
         e.preventDefault();
 
-        // 1. Recupera o ID do evento guardado no clique inicial
         const scheduleId = (window as any).selectedEventId;
 
-        // 2. LOG DE DEBUG: Verifique isso no F12 do navegador
-        console.log("=== DEBUG INSCRIÇÃO ===");
-        console.log("ID do Horário (schedule_id):", scheduleId);
-        console.log("Tipo do ID:", typeof scheduleId);
-
-        // 3. Verificação Crítica: Se o ID for null ou undefined, para aqui.
         if (!scheduleId) {
-            console.error("ERRO: O schedule_id está vazio!");
             alert("Erro de sistema: O ID do evento se perdeu. Por favor, volte à tela inicial e selecione o curso novamente.");
             return;
         }
@@ -240,22 +382,14 @@ const setupRegistrationSubmit = () => {
         const formData = new FormData(form);
         const data = Object.fromEntries(formData);
 
-        // 4. Montagem do Payload (Exatamente como o seu Model Person.php espera)
         const payload = {
-            // Identificação (Tabela persons)
             student_full_name: data.student_full_name,
             student_email: data.student_email,
-            
-            // Detalhes (Tabela person_details)
             student_phone: data.student_phone,
             activity_professional: data.activity_professional,
             neighborhood: data.neighborhood,
             city: data.city,
-            
-            // Vínculo (Tabela events_subscribed)
             schedule_id: scheduleId, 
-            
-            // Ficha Técnica (Tabela anamnesis)
             is_medium: data.is_medium ? 1 : 0,
             is_tule_member: data.is_tule_member ? 1 : 0,
             first_time: data.first_time ? 1 : 0,
@@ -265,10 +399,13 @@ const setupRegistrationSubmit = () => {
             expectations: "Inscrição via Formulário SPA"
         };
 
-        console.log("Payload enviado para a API:", payload);
+        // MUDANÇA 2: Lógica de Decisão do Endpoint (Direct vs Normal)
+        const endpoint = (window as any).isPrePaid 
+            ? `${API_BASE_URL}/api/public/subscribe-direct` 
+            : `${API_BASE_URL}/api/public/register`;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/public/register`, {
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -277,24 +414,19 @@ const setupRegistrationSubmit = () => {
             const result = await res.json();
 
             if (res.ok) {
-                console.log("Sucesso no Servidor:", result);
-                alert("Inscrição concluída com sucesso! O aluno já está registrado e a vaga foi descontada.");
-                
-                // Limpeza e Redirecionamento
+                alert("Inscrição concluída com sucesso!");
                 window.location.hash = '#step-selection'; 
                 window.location.reload(); 
             } else {
-                console.error("Erro retornado pela API:", result);
                 alert("Erro ao salvar inscrição: " + (result.mensagem || "Verifique os dados."));
             }
         } catch (error) {
-            console.error("Erro na comunicação fetch:", error);
-            alert("Não foi possível conectar ao servidor. Verifique se o backend está rodando.");
+            alert("Não foi possível conectar ao servidor.");
         }
     };
 };
 
-// --- FUNÇÃO SHOW REGISTRATION FORM (REUTILIZANDO LÓGICA DA VITRINE) ---
+// --- FUNÇÃO SHOW REGISTRATION FORM ---
 (window as any).showRegistrationForm = (item: any) => {
     hideAllSections();
     
@@ -303,7 +435,6 @@ const setupRegistrationSubmit = () => {
         activeSections.registration.classList.remove('hidden');
     }
 
-    // Preenchimento dos campos da Sessão 1
     const eventTitle = document.querySelector('#reg-event-name');
     const eventType = document.querySelector('#reg-event-type');
     const eventUnit = document.querySelector('#reg-event-unit');
@@ -321,22 +452,18 @@ const setupRegistrationSubmit = () => {
         eventDate.innerHTML = `<span>📅</span> ${diaSemana}, ${dataFormatada} às ${horaFormatada}h`;
     }
 
-    setupRegistrationSubmit(); // Ativa o formulário
+    setupRegistrationSubmit(); 
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // --- FUNÇÃO PARA VER FICHA COMPLETA ---
 (window as any).openFullAnamnesis = (subscribed_id: number) => {
-    // 1. Busca os dados no cache
-
-    
     const ficha = inscriptionsCache.find((f: any) => f.subscribed_id === subscribed_id);
     if (!ficha) return;
 
     const modal = document.querySelector<HTMLDivElement>('#modal-anamnese');
     if (!modal) return;
 
-    // 2. Prepara o conteúdo HTML baseado no seu schema.sql
     const conteudoFicha = `
         <div class="space-y-6 animate-in fade-in duration-300">
             <div class="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-inner">
@@ -392,30 +519,19 @@ const setupRegistrationSubmit = () => {
         </div>
     `;
 
-    // 3. Injeta o conteúdo no corpo do modal
     const modalTitle = modal.querySelector('h2');
     const modalBody = modal.querySelector('.p-8') || modal.querySelector('#modal-select-list')?.parentElement;
 
     if (modalTitle) modalTitle.innerText = `Ficha de Inscrição: ${ficha.full_name}`;
-    if (modalBody) {
-        // Esconde o que for original (inputs, selects de cadastro) e coloca a ficha
-        modalBody.innerHTML = conteudoFicha;
-    }
-
+    if (modalBody) modalBody.innerHTML = conteudoFicha;
     modal.classList.remove('hidden');
 };
 
-// Fechar modais ao clicar no fundo (Overlay)
 window.onclick = (event) => {
     const modalCrud = document.getElementById('modal-crud');
     const modalAnamnese = document.getElementById('modal-anamnese');
-
-    if (event.target === modalCrud) {
-        modalCrud?.classList.add('hidden');
-    }
-    if (event.target === modalAnamnese) {
-        modalAnamnese?.classList.add('hidden');
-    }
+    if (event.target === modalCrud) modalCrud?.classList.add('hidden');
+    if (event.target === modalAnamnese) modalAnamnese?.classList.add('hidden');
 };
 
 const loadInscriptionsData = async () => {
@@ -432,7 +548,6 @@ const loadInscriptionsData = async () => {
             return;
         }
 
-        // --- LÓGICA DE AGRUPAMENTO ---
         const grouped = rawData.reduce((acc: any, item: any) => {
             if (!acc[item.person_id]) {
                 acc[item.person_id] = {
@@ -451,11 +566,8 @@ const loadInscriptionsData = async () => {
             return acc;
         }, {});
 
-        // --- RENDERIZAÇÃO ---
-        // --- RENDERIZAÇÃO DAS INSCRIÇÕES NO MAIN.TS ---
         accordion.innerHTML = Object.keys(grouped).map((personId, index) => {
             const person = grouped[personId];
-            
             return `
             <div class="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm mb-4">
                 <button onclick="toggleAccordion(${index})" class="w-full p-8 flex items-center justify-between hover:bg-slate-50 transition-all">
@@ -475,16 +587,12 @@ const loadInscriptionsData = async () => {
                         <span id="icon-${index}" class="text-slate-400 text-xl transition-transform">▼</span>
                     </div>
                 </button>
-
                 <div id="content-${index}" class="hidden border-t border-slate-100 bg-slate-50/40 p-8">
-                    
                     <div class="mb-8 p-6 bg-white rounded-3xl border border-slate-200 flex justify-between items-center shadow-sm">
                         <div class="text-sm"><b class="text-slate-400 uppercase text-[10px] block mb-1">Profissão</b> <span class="text-lg font-bold text-slate-700">${person.details.profession || '-'}</span></div>
                         <div class="text-sm text-right"><b class="text-slate-400 uppercase text-[10px] block mb-1">Localização</b> <span class="text-lg font-bold text-slate-700">${person.details.neighborhood}, ${person.details.city}</span></div>
                     </div>
-
                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Histórico de Inscrições</h4>
-                    
                     <div class="space-y-6">
                         ${person.events.map((ev: any) => {
                             const statusColor = ev.payment_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
@@ -493,7 +601,6 @@ const loadInscriptionsData = async () => {
                                 <div class="absolute top-8 right-8 ${statusColor} px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter">
                                     ${ev.payment_status || 'Pendente'}
                                 </div>
-
                                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                                     <div>
                                         <div class="mb-4">
@@ -501,14 +608,12 @@ const loadInscriptionsData = async () => {
                                             <h5 class="text-2xl font-black text-slate-900 mt-1">${ev.event_name || 'Evento não encontrado'}</h5>
                                             <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
                                         </div>
-                                        
                                         <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                             <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${new Date(ev.data_inscricao).toLocaleDateString()}</div>
                                             <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Valor</b> <span class="font-black text-slate-900">R$ ${ev.valor_pago || '0,00'}</span></div>
                                             <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b> <span class="truncate block">${ev.payer_email || 'N/A'}</span></div>
                                         </div>
                                     </div>
-
                                     <div class="bg-fuchsia-50/30 p-6 rounded-[2rem] border border-fuchsia-100 flex flex-col justify-between">
                                         <div>
                                             <p class="text-[10px] font-black text-fuchsia-600 uppercase mb-3 tracking-widest">Anamnese do Evento</p>
@@ -572,7 +677,6 @@ const renderAdminDashboard = async () => {
     }
 
     injectVersion();
-
     container.className = "max-w-7xl mx-auto px-6 pt-24 pb-10";
     (window as any).changeAdminTab('inicio');
 };
@@ -606,11 +710,6 @@ const renderAdminDashboard = async () => {
             btn.classList.remove('text-slate-500');
             btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
         }
-        if (btn.textContent?.toLowerCase().trim() === tab.toLowerCase().trim() || 
-           (tab === 'historico' && btn.textContent?.toLowerCase() === 'histórico')) {
-            btn.classList.remove('text-slate-500');
-            btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-        }
     });
     
     switch (tab) {
@@ -630,24 +729,19 @@ const renderAdminDashboard = async () => {
             break;
 
     case 'agenda':
-    // Aumentamos o limite para 1600px para acomodar todos os campos em linha reta
     container.className = "max-w-[1600px] mx-auto px-6 pt-24 pb-10"; 
-    
     container.innerHTML = `
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                 <form id="formAgendamento" class="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                    
                     <div class="md:col-span-2">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Data/Hora</label>
                         <input type="datetime-local" id="datahora" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" required>
                     </div>
-
                     <div class="md:col-span-1">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Duração</label>
                         <input type="number" id="duration-input" min="1" placeholder="min" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
                     </div>
-
                     <div class="md:col-span-2">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Evento</label>
                         <div class="flex">
@@ -655,7 +749,6 @@ const renderAdminDashboard = async () => {
                             <button type="button" onclick="openCrudModal('events')" class="bg-slate-50 px-3 border border-l-0 border-slate-200 rounded-r-xl hover:bg-slate-100 font-bold">+</button>
                         </div>
                     </div>
-
                     <div class="md:col-span-2 ml-7">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Tipo</label>
                         <div class="flex">
@@ -663,7 +756,6 @@ const renderAdminDashboard = async () => {
                             <button type="button" onclick="openCrudModal('event-types')" class="bg-slate-50 px-2 border border-l-0 border-slate-200 rounded-r-xl font-bold">+</button>
                         </div>
                     </div>
-
                     <div class="md:col-span-1 ml-8">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Unidade</label>
                         <div class="flex">
@@ -671,12 +763,10 @@ const renderAdminDashboard = async () => {
                             <button type="button" onclick="openCrudModal('units')" class="bg-slate-50 px-3 border border-l-0 border-slate-200 rounded-r-xl font-bold">+</button>
                         </div>
                     </div>
-
                     <div class="md:col-span-3 ml-38">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Vagas</label>
                         <input type="number" id="vagas-input" min="0" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
                     </div>
-
                     <div class="md:col-span-1">
                         <button type="submit" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase hover:bg-blue-700 transition-all shadow-md">
                             Salvar
@@ -684,7 +774,6 @@ const renderAdminDashboard = async () => {
                     </div>
                 </form>
             </div>
-            
             <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-50 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
@@ -720,15 +809,6 @@ const renderAdminDashboard = async () => {
             `;
             loadInscriptionsData();
             break;
-
-        case 'historico':
-            container.innerHTML = `
-                <div class="py-10 text-center">
-                    <h2 class="text-2xl font-black text-slate-900">Histórico de Atividades</h2>
-                    <p class="text-slate-500">Módulo em desenvolvimento...</p>
-                </div>
-            `;
-            break;
     }
 };
 
@@ -738,78 +818,38 @@ const loadAdminTableData = async () => {
     if (!tbody) return;
 
     try {
-        // Busca os dados da agenda no backend
         const res = await safeFetch(`${API_BASE_URL}/schedules`, { credentials: 'include' });
         const data = await res.json();
         
         tbody.innerHTML = data.map((item: any) => {
-            // 1. Tratamento de Datas e Horários
             const dataInicio = new Date(item.scheduled_at);
             const duration = parseInt(item.duration_minutes) || 0;
-            
-            // Calcula a hora de término somando a duração (em milissegundos)
             const dataFim = new Date(dataInicio.getTime() + duration * 60000);
-
             const horaInicio = dataInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const horaFim = dataFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-            // Formatação da exibição da hora (mostra o intervalo se houver duração)
-            const exibicaoHorario = duration > 0 
-                ? `${horaInicio} - ${horaFim}` 
-                : `${horaInicio}`;
+            const exibicaoHorario = duration > 0 ? `${horaInicio} - ${horaFim}` : `${horaInicio}`;
 
             return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 text-slate-700">
-                    <td class="p-4 font-bold text-slate-900">
-                        ${getDayName(item.scheduled_at)}
-                    </td>
-
-                    <td class="p-4 whitespace-nowrap">
-                        <div class="font-medium">${dataInicio.toLocaleDateString('pt-BR')} - ${exibicaoHorario}</div>
-                    </td>
-
-                    <td class="p-4 font-bold text-slate-900">
-                        ${item.event_name}
-                    </td>
-
-                    <td class="p-4 text-blue-600 font-semibold">
-                        ${item.type_name || '-'}
-                    </td>
-
-                    <td class="p-4 text-center font-black text-slate-900">
-                        R$ ${item.event_price}
-                    </td>
-
-                    <td class="p-4 text-center font-bold text-slate-500 uppercase text-[11px] tracking-tight">
-                        ${item.unit_name}
-                    </td>
-
+                    <td class="p-4 font-bold text-slate-900">${getDayName(item.scheduled_at)}</td>
+                    <td class="p-4 whitespace-nowrap"><div class="font-medium">${dataInicio.toLocaleDateString('pt-BR')} - ${exibicaoHorario}</div></td>
+                    <td class="p-4 font-bold text-slate-900">${item.event_name}</td>
+                    <td class="p-4 text-blue-600 font-semibold">${item.type_name || '-'}</td>
+                    <td class="p-4 text-center font-black text-slate-900">R$ ${item.event_price}</td>
+                    <td class="p-4 text-center font-bold text-slate-500 uppercase text-[11px] tracking-tight">${item.unit_name}</td>
                     <td class="p-4 text-center">
                         <span class="px-3 py-1 rounded-full font-black text-[10px] uppercase ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
                             ${item.vacancies} Vagas
                         </span>
                     </td>
-
                     <td class="p-4 text-center">
-                        <button onclick="deleteSchedule(${item.schedule_id})" 
-                                class="text-red-400 hover:text-red-600 font-bold transition-colors p-2 hover:bg-red-50 rounded-lg">
-                            Excluir
-                        </button>
+                        <button onclick="deleteSchedule(${item.schedule_id})" class="text-red-400 hover:text-red-600 font-bold transition-colors p-2 hover:bg-red-50 rounded-lg">Excluir</button>
                     </td>
                 </tr>
             `;
         }).join('');
-
     } catch (e) { 
-        // Colspan ajustado para as 8 colunas da tabela
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="p-10 text-center">
-                    <div class="text-red-500 font-bold">Erro ao carregar dados da agenda.</div>
-                    <div class="text-xs text-slate-400">Verifique a conexão com a API.</div>
-                </td>
-            </tr>
-        `; 
+        tbody.innerHTML = '<tr><td colspan="8" class="p-10 text-center text-red-500">Erro ao carregar dados.</td></tr>'; 
     }
 };
 
@@ -821,48 +861,31 @@ const loadFormOptions = async () => {
             safeFetch(`${API_BASE_URL}/units`, opt).then(r => r.json()),
             safeFetch(`${API_BASE_URL}/event-types`, opt).then(r => r.json())
         ]);
-        
         const sEv = document.querySelector<HTMLSelectElement>('#select-evento');
         const sUn = document.querySelector<HTMLSelectElement>('#select-unidade');
         const sTp = document.querySelector<HTMLSelectElement>('#select-tipo');
-
-        if (sEv) {
-            sEv.innerHTML = '<option value="" disabled selected>Selecione o Evento</option>' + 
-                ev.map((e: any) => `<option value="${e.id}">${e.name}</option>`).join('');
-        }
-        if (sUn) {
-            sUn.innerHTML = '<option value="" disabled selected>Selecione a Unidade</option>' + 
-                un.map((u: any) => `<option value="${u.id}">${u.name}</option>`).join('');
-        }
-        if (sTp) {
-            sTp.innerHTML = '<option value="" disabled selected>Selecione o Tipo</option>' + 
-                tp.map((t: any) => `<option value="${t.id}">${t.name}</option>`).join('');
-        }
-    } catch (e) { 
-        console.error("Erro ao carregar selects", e); 
-    }
+        if (sEv) sEv.innerHTML = '<option value="" disabled selected>Evento</option>' + ev.map((e: any) => `<option value="${e.id}">${e.name}</option>`).join('');
+        if (sUn) sUn.innerHTML = '<option value="" disabled selected>Unidade</option>' + un.map((u: any) => `<option value="${u.id}">${u.name}</option>`).join('');
+        if (sTp) sTp.innerHTML = '<option value="" disabled selected>Tipo</option>' + tp.map((t: any) => `<option value="${t.id}">${t.name}</option>`).join('');
+    } catch (e) { console.error(e); }
 };
 
 const setupFormListener = () => {
     const form = document.querySelector<HTMLFormElement>('#formAgendamento');
     form?.addEventListener('submit', async (e) => {
         e.preventDefault();
-
-       const payload = {
+        const payload = {
             scheduled_at: (document.querySelector('#datahora') as HTMLInputElement).value,
-
             event_id: parseInt((document.querySelector('#select-evento') as HTMLSelectElement).value, 10),
             unit_id: parseInt((document.querySelector('#select-unidade') as HTMLSelectElement).value, 10),
             event_type_id: parseInt((document.querySelector('#select-tipo') as HTMLSelectElement).value, 10),
-            
             vacancies: parseInt((document.querySelector('#vagas-input') as HTMLInputElement).value, 10) || 0,
             duration_minutes: parseInt((document.querySelector('#duration-input') as HTMLInputElement).value, 10) || 0,
-            
             status: 'available'
         };
 
-        console.log(payload);
-        alert(payload)
+        // MUDANÇA 3: Alerta corrigido para mostrar os dados do objeto
+        alert("Salvando agendamento: " + JSON.stringify(payload, null, 2));
 
         const res = await safeFetch(`${API_BASE_URL}/schedules`, {
             method: 'POST',
@@ -885,27 +908,14 @@ const setupFormListener = () => {
     const modal = document.querySelector<HTMLDivElement>('#modal-crud')!;
     const modalBody = modal.querySelector('.p-8') || modal.querySelector('#modal-select-list')?.parentElement;
 
-    // --- LINHA DE LIMPEZA/RESTAURAÇÃO ---
-    // Se for a primeira vez, guardamos o formulário. 
-    // Se não for a primeira, restauramos o que guardámos antes de mostrar.
-    if (!modalOriginalHTML && modalBody) {
-        modalOriginalHTML = modalBody.innerHTML; 
-    } else if (modalBody) {
-        modalBody.innerHTML = modalOriginalHTML; // Restaura o formulário original (limpa a ficha)
-    }
-    // ------------------------------------
+    if (!modalOriginalHTML && modalBody) modalOriginalHTML = modalBody.innerHTML; 
+    else if (modalBody) modalBody.innerHTML = modalOriginalHTML; 
 
     const title = document.querySelector<HTMLHeadingElement>('#modal-title')!;
-    const priceField = document.querySelector<HTMLDivElement>('#field-price')!;
-
     title.innerText = `Gerenciar ${target === 'events' ? 'Eventos' : target === 'units' ? 'Unidades' : 'Tipos de Evento'}`;
     
-    // IMPORTANTE: Como restauraste o HTML, precisas de re-selecionar os campos 
-    // ou usar seletores dentro desta função, senão o "hidden" do preço não funciona
     const currentPriceField = modal.querySelector<HTMLDivElement>('#field-price');
-    if (currentPriceField) {
-        currentPriceField.classList.toggle('hidden', target !== 'events');
-    }
+    if (currentPriceField) currentPriceField.classList.toggle('hidden', target !== 'events');
 
     modal.classList.remove('hidden');
     await refreshModalList();
@@ -916,59 +926,41 @@ async function refreshModalList() {
     try {
         const res = await safeFetch(url, { credentials: 'include' });
         const data = await res.json();
-        
         const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
-        if (select) {
-            select.innerHTML = '<option value="">Selecione para excluir...</option>' + 
-                data.map((item: any) => `
-                    <option value="${item.id}">${item.name || item.nome}</option>
-                `).join('');
-        }
-    } catch (error) {
-        console.error("Erro ao carregar lista do modal:", error);
-    }
+        if (select) select.innerHTML = '<option value="">Excluir...</option>' + data.map((item: any) => `<option value="${item.id}">${item.name || item.nome}</option>`).join('');
+    } catch (e) { console.error(e); }
 }   
 
-// No final do loadEvents, onde criamos o footer:
+// --- FOOTER VERSION ---
 const footer = document.createElement('div');
 footer.className = "col-span-full text-center mt-12 mb-8 flex flex-col items-center gap-2";
-footer.innerHTML = `
-    <span class="opacity-30 text-[9px] text-white font-mono uppercase tracking-widest">
-        MISTURA DE LUZ <span class="app-version"></span>
-    </span>
-`;
+footer.innerHTML = `<span class="opacity-30 text-[9px] text-white font-mono uppercase tracking-widest">MISTURA DE LUZ <span class="app-version"></span></span>`;
 injectVersion();
 
-// --- AUTH ACTIONS ---
-// Esta função é chamada quando você clica no card da agenda
-(window as any).selectEvent = (id: number, name: string, vacancies: number) => {
-    if (vacancies <= 0) {
+// --- SELEÇÃO DE EVENTO ---
+(window as any).selectEvent = (item: any) => {
+    if (item.vacancies <= 0) {
         alert("Desculpe, este evento acabou de esgotar as vagas.");
         return;
     }
 
-    (window as any).selectedEventId = id; 
-    console.log("📌 Evento selecionado com sucesso! ID guardado:", id);
+    // Guardamos o objeto completo para usar no Checkout e na Inscrição
+    (window as any).selectedSchedule = item; 
+    (window as any).selectedEventId = item.schedule_id; 
 
+    // Preenche o título visualmente se necessário
     const eventNameDisplay = document.querySelector('#reg-event-name');
-    if (eventNameDisplay) eventNameDisplay.textContent = name;
+    if (eventNameDisplay) eventNameDisplay.textContent = item.event_name;
 
     hideAllSections();
+    
+    // Conforme seu roteiro: Passo 2 - Validação de e-mail
     const step1 = document.querySelector<HTMLDivElement>('#step-1');
     if (step1) step1.classList.remove('hidden');
 };
 
-
 (window as any).makeLogout = async () => {
-    try {
-        await fetch(`${API_BASE_URL}/logout`, { 
-            method: 'POST', 
-            credentials: 'include' 
-        });
-    } catch (error) {
-        console.error("Erro ao comunicar logout", error);
-    }
-
+    try { await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' }); } catch (e) {}
     localStorage.removeItem('admin_full_name');
     window.location.href = '/agenda/login.html';
 };
@@ -976,52 +968,33 @@ injectVersion();
 (window as any).makeLogin = async () => {
     const email = document.querySelector<HTMLInputElement>('#admin-email')!.value;
     const password = document.querySelector<HTMLInputElement>('#admin-password')!.value;
-    
     try {
-        // Chamamos o safeFetch para a rota de login
         const res = await safeFetch(`${API_BASE_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ email, password })
         });
-
         if (res.ok) {
-            // Lemos o JSON de resposta
             const data = await res.json();
-            
-            // 1. Salvamos o nome do admin para o Dashboard
             localStorage.setItem('admin_full_name', data.user.full_name);
-            
-            // 3. Redirecionamos para o Dashboard
             window.location.href = 'index.html#admin';
-        
-        } else {
-            alert("Erro no login: Verifique suas credenciais.");
-        }
-    } catch (error) {
-        console.error("Falha na comunicação com o servidor:", error);
-    }
+        } else { alert("Login inválido."); }
+    } catch (e) { console.error(e); }
 };
 
 (window as any).deleteSchedule = async (id: number) => {
-    if (!confirm("Excluir agendamento?")) return;
-    const res = await safeFetch(`${API_BASE_URL}/schedules/${id}`, { 
-        method: 'DELETE', 
-        credentials: 'include' 
-    });
+    if (!confirm("Excluir?")) return;
+    const res = await safeFetch(`${API_BASE_URL}/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) loadAdminTableData();
 };
 
 (window as any).saveCrudItem = async () => {
     const nameInput = document.querySelector<HTMLInputElement>('#modal-input-name');
     const priceInput = document.querySelector<HTMLInputElement>('#modal-input-price');
-    
-    if (!nameInput?.value) return alert("Preencha o nome!");
-
+    if (!nameInput?.value) return alert("Nome!");
     const payload: any = { name: nameInput.value };
     if (currentTarget === 'events') payload.price = priceInput?.value;
-
     try {
         const res = await safeFetch(`${API_BASE_URL}/${currentTarget}`, {
             method: 'POST',
@@ -1029,47 +1002,24 @@ injectVersion();
             credentials: 'include',
             body: JSON.stringify(payload)
         });
-
         if (res.ok) {
             if (nameInput) nameInput.value = '';
             if (priceInput) priceInput.value = '';
             await refreshModalList();
             await loadFormOptions();
-            alert("Cadastrado com sucesso!");
+            alert("Salvo!");
         }
-    } catch (e) {
-        console.error("Erro ao salvar item", e);
-    }
+    } catch (e) { console.error(e); }
 };
 
 (window as any).deleteCrudItem = async () => {
-    const selectElement = document.querySelector('#modal-select-list') as HTMLSelectElement;
-    const id = selectElement.value;
-
-    if (!id) return alert("Selecione um item para excluir");
-    if (!confirm("Tem certeza que deseja excluir este item?")) return;
-
+    const id = (document.querySelector('#modal-select-list') as HTMLSelectElement).value;
+    if (!id || !confirm("Excluir?")) return;
     try {
-        const res = await safeFetch(`${API_BASE_URL}/${currentTarget}/${id}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        if (res.ok) {
-            alert("Excluído com sucesso!");
-            await refreshModalList(); 
-            await loadFormOptions(); 
-        } else {
-            const data = await res.json();
-            alert(data.error || "Erro ao tentar excluir registro.");
-        }
-    } catch (e) {
-        console.error("Erro na comunicação:", e);
-        alert("Falha ao processar a exclusão.");
-    }
+        const res = await safeFetch(`${API_BASE_URL}/${currentTarget}/${id}`, { method: 'DELETE', credentials: 'include' });
+        if (res.ok) { await refreshModalList(); await loadFormOptions(); }
+    } catch (e) { console.error(e); }
 };
-
-
 
 // --- INICIALIZAÇÃO ---
 window.addEventListener('popstate', handleRouting);
