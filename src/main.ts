@@ -47,25 +47,58 @@ const sections = {
 const handleRouting = async () => {
     const path = window.location.pathname;
     const hash = window.location.hash;
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('collection_status') || urlParams.get('status');
     
     hideAllSections();
     const activeSections = getSections();
 
+    // 1. LÓGICA DE REDIRECIONAMENTO PÓS-PAGAMENTO (MERCADO PAGO)
+    // Se o usuário volta do MP com status de sucesso, forçamos a abertura da ficha
+    if (paymentStatus === 'approved' || paymentStatus === 'success') {
+        alert("✨ Pagamento confirmado com sucesso! Por favor, preencha sua ficha de inscrição.");
+        
+        // Remove os parâmetros da URL para não ficar dando alert se o usuário der F5
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Marcamos como pré-pago para não subtrair vaga duplicada no banco
+        (window as any).isPrePaid = true;
+        
+        // Exibe a ficha de inscrição (Step Registration)
+        if (activeSections.registration) {
+            activeSections.registration.classList.remove('hidden');
+            // Tenta recuperar o evento selecionado do localStorage se você o salvou antes
+            // Ou apenas exibe o formulário vazio para o aluno preencher
+            return; 
+        }
+    }
+
+    // 2. ROTEAMENTO DE PÁGINAS ADMINISTRATIVAS / LOGIN
     if (path.includes('login.html') || hash === '#login' || hash === '#admin') {
         document.body.classList.remove('bg-reiki');
+        
         if (hash === '#admin') {
-            const res = await safeFetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
-            res.ok ? renderAdminDashboard() : window.location.href = 'login.html';
+            try {
+                const res = await safeFetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
+                res.ok ? renderAdminDashboard() : window.location.href = 'login.html';
+            } catch (e) {
+                window.location.href = 'login.html';
+            }
         } else {
             activeSections.login?.classList.remove('hidden');
         }
-    } else {
+    } 
+    // 3. ROTEAMENTO DA AGENDA PÚBLICA (HOME)
+    else {
         document.body.classList.add('bg-reiki');
-        activeSections.selection?.classList.remove('hidden');
-        loadEvents();
+        if (activeSections.selection) {
+            activeSections.selection.classList.remove('hidden');
+            loadEvents(); // Carrega a vitrine de cursos
+        }
     }
+
     injectVersion();
-};
+};  
 
 const hideAllSections = () => {
     const activeSections = getSections();
@@ -287,34 +320,60 @@ const setupEmailValidation = () => {
     }
 };
 
+const startPaymentMonitoring = (email: string, scheduleId: number) => {
+    const interval = setInterval(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/check-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, schedule_id: scheduleId })
+            });
+            const data = await res.json();
+
+            if (data.has_paid) {
+                clearInterval(interval);
+                alert("✅ Pagamento identificado com sucesso!");
+                (window as any).isPrePaid = true;
+                (window as any).showRegistrationForm((window as any).selectedSchedule);
+            }
+        } catch (e) {
+            console.error("Erro ao monitorar pagamento");
+        }
+    }, 4000); 
+};  
+
 const proceedToCheckout = async () => {
     const scheduleId = (window as any).selectedEventId;
-    const emailInput = document.querySelector<HTMLInputElement>('#email');
-    const email = emailInput?.value.trim();
+    const email = document.querySelector<HTMLInputElement>('#email')?.value.trim();
 
     try {
         const res = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email: email, 
-                schedule_id: scheduleId 
-            })
+            body: JSON.stringify({ email, schedule_id: scheduleId })
         });
 
         const data = await res.json();
 
-        if (data.init_point) {
-            // Redireciona o usuário para o Checkout Pro do Mercado Pago
-            window.location.href = data.init_point; 
-        } else {
-            alert("Não foi possível gerar o link de pagamento.");
+        // No trecho dentro do proceedToCheckout
+                if (data.init_point) {
+                    window.open(data.init_point, '_blank');
+                    alert("O pagamento foi aberto em uma nova janela. Esta página será atualizada automaticamente.");
+
+                    // A mágica para o TS parar de reclamar: 
+                    // Verificamos se o email existe. Se existir, ele "garante" que é string.
+                    if (email) {
+                        startPaymentMonitoring(email, scheduleId);
+                    } else {
+                        console.error("Erro: E-mail não encontrado para monitoramento.");
+                }
         }
     } catch (e) {
-        console.error(e);
-        alert("Erro de conexão ao processar pagamento.");
+        alert("Erro ao processar checkout.");
     }
 };
+
+
 
 // 3. Chamamos a configuração sempre que a seção de e-mail (step-1) for aberta
 // Adicione esta chamada dentro da sua função selectEvent ou handleRouting
