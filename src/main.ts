@@ -124,6 +124,13 @@ const checkAuth = async () => {
     } catch { return false; }
 };
 
+const checkAuth = async () => {
+    try {
+        const res = await safeFetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
+        return res.ok;
+    } catch { return false; }
+};
+
 const hideAllSections = () => {
     const activeSections = getSections();
     Object.values(activeSections).forEach(s => s?.classList.add('hidden'));
@@ -460,6 +467,7 @@ const setupRegistrationSubmit = () => {
 };
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 (window as any).validateCodeAndPay = async () => {
     const codeInput = document.querySelector<HTMLInputElement>('#otp-code');
     const emailInput = document.querySelector<HTMLInputElement>('#email');
@@ -548,6 +556,9 @@ const proceedToCheckout = async () => {
 // 3. Chamamos a configuração sempre que a seção de e-mail (step-1) for aberta
 // Adicione esta chamada dentro da sua função selectEvent ou handleRouting
 
+=======
+// --- FUNÇÃO SHOW REGISTRATION FORM ---
+>>>>>>> parent of 7c0ceb1 (it is work)
 =======
 // --- FUNÇÃO SHOW REGISTRATION FORM ---
 >>>>>>> parent of 7c0ceb1 (it is work)
