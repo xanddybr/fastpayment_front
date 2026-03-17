@@ -3,9 +3,9 @@ import './style.css';
 // --- CONFIGURAÇÃO HÍBRIDA DA API ---
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:8080' 
-    : 'https://misturadeluz.com/agenda/api/public';
+    : 'https://misturadeluz.com/fastpayment/api/public';
 
-const APP_VERSION = "v1.0.0";
+const APP_VERSION = "v1.0.0 ";
 
 let inscriptionsCache: any[] = [];
 let modalOriginalHTML: string = ''; 
@@ -124,13 +124,6 @@ const checkAuth = async () => {
     } catch { return false; }
 };
 
-const checkAuth = async () => {
-    try {
-        const res = await safeFetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
-        return res.ok;
-    } catch { return false; }
-};
-
 const hideAllSections = () => {
     const activeSections = getSections();
     Object.values(activeSections).forEach(s => s?.classList.add('hidden'));
@@ -170,88 +163,91 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     
     container.innerHTML = '<p class="text-center col-span-full text-slate-400">Buscando horários...</p>';
     
-    try {
-        const url = `${API_BASE_URL}/api/schedules?slug=${eventSlug}&type=${typeSlug}`;
-        const response = await fetch(url, { credentials: 'include' });
-        const schedules = await response.json();
+   try {
+    const url = `${API_BASE_URL}/api/schedules?slug=${eventSlug}&type=${typeSlug}`;
+    const response = await fetch(url, { credentials: 'include' });
+    const schedules = await response.json();
 
-        if (!schedules || schedules.length === 0) {
-            container.innerHTML = '<p class="text-center col-span-full text-slate-500 py-10">Nenhum horário disponível.</p>';
-            return;
-        }
+    if (!schedules || schedules.length === 0) {
+        container.innerHTML = '<p class="text-center col-span-full text-slate-500 py-10">Nenhum horário disponível.</p>';
+        return;
+    }
 
         container.innerHTML = schedules.map((item: any) => {
-            // Lógica para o Horário (Início e Fim)
-            const dataInicio = new Date(item.scheduled_at);
-            const duracao = parseInt(item.duration_minutes) || 0;
-            const dataFim = new Date(dataInicio.getTime() + duracao * 60000);
-
-            const horaInicio = dataInicio.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            const horaFim = dataFim.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            
-            // Texto do horário: "14:00h às 15:30h" ou apenas "14:00h"
-            const horarioCompleto = duracao > 0 
-                ? `${horaInicio}h às ${horaFim}h` 
-                : `${horaInicio}h`;
-
-            // Lógica para o Badge de Vagas
-            const hasVacancies = item.vacancies > 0;
-            const vacanciesLabel = hasVacancies 
-                ? `<span class="text-[12px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20 uppercase tracking-tighter">
-                    ${item.vacancies} vagas restantes
-                   </span>`
-                : `<span class="text-[9px] font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full border border-red-400/20 uppercase tracking-tighter">
-                    Esgotado
-                   </span>`;
-
-            // Configuração do Botão
-            const btnClass = hasVacancies 
-                ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 active:scale-95" 
-                : "bg-slate-800 text-slate-500 cursor-not-allowed opacity-50";
-            const btnText = hasVacancies ? "Inscreva-se Agora!" : "Vagas Esgotadas";
-            const btnAction = hasVacancies ? `onclick="selectEvent(${JSON.stringify(item)})"` : "";
-
-            return `
-            
-            <div class="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-2xl hover:border-fuchsia-600 transition-all duration-300 group relative overflow-hidden">
+                // --- CORREÇÃO DA DATA ---
+                // Trocamos "-" por "/" para garantir compatibilidade total
+                const dataFormatada = item.scheduled_at.replace(/-/g, '/');
+                const dataInicio = new Date(dataFormatada);
                 
-                <div class="flex justify-between items-start mb-4">
-                    <span class="bg-violet-600/20 text-violet-400 text-[10px] font-bold px-3 py-1 rounded-full border border-violet-600/30 uppercase tracking-widest">
-                        ${item.type_name || 'Geral'}
-                    </span>
-                    ${vacanciesLabel}
-                </div>
+                const duracao = parseInt(item.duration_minutes) || 0;
+                const dataFim = new Date(dataInicio.getTime() + duracao * 60000);
 
-                <h3 class="text-xl font-black text-fuchsia-500 mb-1">
-                    ${item.event_name}
-                </h3>
+                const horaInicio = dataInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const horaFim = dataFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-baseline gap-1">
-                        <span class="text-xs text-slate-500 font-bold uppercase">R$</span>
-                        <span class="text-2xl font-black text-slate-100">${item.event_price}</span>
+                // --- CORREÇÃO DA VARIÁVEL ---
+                // Você usou 'horarioCompleto' em cima e 'horarioExibicao' em baixo em alguns testes
+                const horarioExibicao = duracao > 0 
+                    ? `${horaInicio}h às ${horaFim}h` 
+                    : `${horaInicio}h`;
+
+                const hasVacancies = item.vacancies > 0;
+                const vacanciesLabel = hasVacancies 
+                    ? `<span class="text-[12px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20 uppercase tracking-tighter">
+                        ${item.vacancies} vagas restantes
+                    </span>`
+                    : `<span class="text-[9px] font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full border border-red-400/20 uppercase tracking-tighter">
+                        Esgotado
+                    </span>`;
+
+                const btnClass = hasVacancies 
+                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 active:scale-95" 
+                    : "bg-slate-800 text-slate-500 cursor-not-allowed opacity-50";
+                
+                const btnText = hasVacancies ? "Inscreva-se Agora!" : "Vagas Esgotadas";
+                
+                // Importante: JSON.stringify no onclick precisa de escape para aspas
+                const btnAction = hasVacancies ? `onclick='selectEvent(${JSON.stringify(item)})'` : "";
+
+                return `
+                <div class="bg-slate-950 border border-slate-800 p-6 rounded-3xl shadow-2xl hover:border-fuchsia-600 transition-all duration-300 group relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="bg-violet-600/20 text-violet-400 text-[10px] font-bold px-3 py-1 rounded-full border border-violet-600/30 uppercase tracking-widest">
+                            ${item.type_name || 'Geral'}
+                        </span>
+                        ${vacanciesLabel}
                     </div>
-                    <span class="text-[15px] text-slate-600 font-black uppercase tracking-tighter">${item.unit_name}</span>
+
+                    <h3 class="text-xl font-black text-fuchsia-500 mb-1">
+                        ${item.event_name}
+                    </h3>
+                    
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-xs text-slate-500 font-bold uppercase">R$</span>
+                            <span class="text-2xl font-black text-slate-100">${item.event_price}</span>
+                        </div>
+                        <span class="text-[15px] text-slate-600 font-black uppercase tracking-tighter">${item.unit_name}</span>
+                    </div>
+                    
+                    <div class="space-y-2 mb-6 border-l-2 border-violet-600/30 pl-4">
+                        <p class="text-sm text-slate-300 flex items-center gap-2">
+                            <span class="text-violet-500">📅</span> ${getDayName(item.scheduled_at)}, ${dataInicio.toLocaleDateString('pt-BR')}
+                        </p>
+                        <p class="text-sm text-slate-400 flex items-center gap-2 italic">
+                            <span class="text-fuchsia-500 text-xs">⏰</span> ${horarioExibicao}
+                        </p>
+                    </div>
+                    
+                    <button ${btnAction} class="w-full ${btnClass} text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all transform">
+                        ${btnText}
+                    </button>
                 </div>
-                
-                <div class="space-y-2 mb-6 border-l-2 border-violet-600/30 pl-4">
-                    <p class="text-sm text-slate-300 flex items-center gap-2">
-                        <span class="text-violet-500">📅</span> ${getDayName(item.scheduled_at)}, ${new Date(item.scheduled_at).toLocaleDateString('pt-BR')}
-                    </p>
-                    <p class="text-sm text-slate-400 flex items-center gap-2 italic">
-                        <span class="text-fuchsia-500 text-xs">⏰</span> ${horarioCompleto}
-                    </p>
-                </div>
-                
-                <button ${btnAction} class="w-full ${btnClass} text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all transform">
-                    ${btnText}
-                </button>
-            </div>
-            `;
-        }).join('');
-    } catch (e) { 
-        container.innerHTML = '<p class="text-center col-span-full text-red-500">Erro ao carregar agenda.</p>'; 
-    }
+                `;
+            }).join('');
+        } catch (e) { 
+            container.innerHTML = '<p class="text-center col-span-full text-red-500">Erro ao carregar agenda.</p>'; 
+        }
 };
 
 const nextStep = (current: number) => {
@@ -466,8 +462,7 @@ const setupRegistrationSubmit = () => {
     };
 };
 
-<<<<<<< HEAD
-<<<<<<< HEAD
+
 (window as any).validateCodeAndPay = async () => {
     const codeInput = document.querySelector<HTMLInputElement>('#otp-code');
     const emailInput = document.querySelector<HTMLInputElement>('#email');
@@ -552,16 +547,6 @@ const proceedToCheckout = async () => {
 };
 
 
-
-// 3. Chamamos a configuração sempre que a seção de e-mail (step-1) for aberta
-// Adicione esta chamada dentro da sua função selectEvent ou handleRouting
-
-=======
-// --- FUNÇÃO SHOW REGISTRATION FORM ---
->>>>>>> parent of 7c0ceb1 (it is work)
-=======
-// --- FUNÇÃO SHOW REGISTRATION FORM ---
->>>>>>> parent of 7c0ceb1 (it is work)
 (window as any).showRegistrationForm = (item: any) => {
     hideAllSections();
     
@@ -744,7 +729,7 @@ const loadInscriptionsData = async () => {
                                             <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
                                         </div>
                                         <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${new Date(ev.data_inscricao).toLocaleDateString()}</div>
+                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${new Date(ev.data_inscricao).toLocaleDateString()+""}</div>
                                             <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Valor</b> <span class="font-black text-slate-900">R$ ${ev.valor_pago || '0,00'}</span></div>
                                             <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b> <span class="truncate block">${ev.payer_email || 'N/A'}</span></div>
                                         </div>
@@ -967,7 +952,7 @@ const loadAdminTableData = async () => {
             return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 text-slate-700">
                     <td class="p-4 font-bold text-slate-900">${getDayName(item.scheduled_at)}</td>
-                    <td class="p-4 whitespace-nowrap"><div class="font-medium">${dataInicio.toLocaleDateString('pt-BR')} - ${exibicaoHorario}</div></td>
+                    <td class="p-4 text-center font-bold text-slate-500 uppercase text-[13px] tracking-tight"><div class="font-medium">${dataInicio.toLocaleDateString('pt-BR')} - ${exibicaoHorario}</div></td>
                     <td class="p-4 font-bold text-slate-900">${item.event_name}</td>
                     <td class="p-4 text-blue-600 font-semibold">${item.type_name || '-'}</td>
                     <td class="p-4 text-center font-black text-slate-900">R$ ${item.event_price}</td>
@@ -1041,16 +1026,23 @@ const setupFormListener = () => {
 (window as any).openCrudModal = async (target: 'events' | 'units' | 'event-types') => {
     currentTarget = target; 
     const modal = document.querySelector<HTMLDivElement>('#modal-crud')!;
-    const modalBody = modal.querySelector('.p-8') || modal.querySelector('#modal-select-list')?.parentElement;
-
-    if (!modalOriginalHTML && modalBody) modalOriginalHTML = modalBody.innerHTML; 
-    else if (modalBody) modalBody.innerHTML = modalOriginalHTML; 
-
     const title = document.querySelector<HTMLHeadingElement>('#modal-title')!;
-    title.innerText = `Gerenciar ${target === 'events' ? 'Eventos' : target === 'units' ? 'Unidades' : 'Tipos de Evento'}`;
+    const nameInput = document.querySelector<HTMLInputElement>('#modal-input-name');
+    const priceInput = document.querySelector<HTMLInputElement>('#modal-input-price');
+    const priceField = document.querySelector<HTMLDivElement>('#field-price');
+
+    // Limpa campos anteriores
+    if (nameInput) nameInput.value = '';
+    if (priceInput) priceInput.value = '';
+
+    // Ajusta o título
+    const labels: any = { 'events': 'Eventos', 'units': 'Unidades', 'event-types': 'Tipos' };
+    title.innerText = `Gerenciar ${labels[target]}`;
     
-    const currentPriceField = modal.querySelector<HTMLDivElement>('#field-price');
-    if (currentPriceField) currentPriceField.classList.toggle('hidden', target !== 'events');
+    // Mostra ou esconde o campo de preço
+    if (priceField) {
+        priceField.classList.toggle('hidden', target !== 'events');
+    }
 
     modal.classList.remove('hidden');
     await refreshModalList();
@@ -1101,21 +1093,45 @@ injectVersion();
 };
 
 (window as any).makeLogin = async () => {
-    const email = document.querySelector<HTMLInputElement>('#admin-email')!.value;
-    const password = document.querySelector<HTMLInputElement>('#admin-password')!.value;
+    const emailInput = document.querySelector<HTMLInputElement>('#admin-email');
+    const passwordInput = document.querySelector<HTMLInputElement>('#admin-password');
+
+    if (!emailInput || !passwordInput) {
+        console.error("Campos de login não encontrados no DOM");
+        return;
+    }
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+        alert("Por favor, preencha todos os campos.");
+        return;
+    }
+
     try {
+        // CORREÇÃO DA ROTA: Adicionado /api/auth/ para bater com seu index.php
         const res = await safeFetch(`${API_BASE_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
+            credentials: 'include', // Importante para manter o cookie da sessão
             body: JSON.stringify({ email, password })
         });
+
         if (res.ok) {
             const data = await res.json();
             localStorage.setItem('admin_full_name', data.user.full_name);
-            window.location.href = 'index.html#admin';
-        } else { alert("Login inválido."); }
-    } catch (e) { console.error(e); }
+            // Redireciona usando o hash que o seu handleRouting já entende
+            window.location.hash = '#admin';
+            handleRouting(); 
+        } else {
+            const errorData = await res.json();
+            alert(errorData.mensagem || "Login inválido.");
+        }
+    } catch (e) {
+        console.error("Erro na requisição de login:", e);
+        alert("Erro ao conectar com o servidor.");
+    }
 };
 
 (window as any).deleteSchedule = async (id: number) => {
@@ -1125,11 +1141,26 @@ injectVersion();
 };
 
 (window as any).saveCrudItem = async () => {
+    // Buscamos os inputs dentro do modal ativo no momento do clique
     const nameInput = document.querySelector<HTMLInputElement>('#modal-input-name');
     const priceInput = document.querySelector<HTMLInputElement>('#modal-input-price');
-    if (!nameInput?.value) return alert("Nome!");
-    const payload: any = { name: nameInput.value };
-    if (currentTarget === 'events') payload.price = priceInput?.value;
+
+    if (!nameInput || !nameInput.value.trim()) {
+        alert("Por favor, digite um nome!");
+        return;
+    }
+
+    const payload: any = { name: nameInput.value.trim() };
+    
+    // Se estivermos em eventos, adicionamos o preço
+    if (currentTarget === 'events') {
+        if (!priceInput || !priceInput.value) {
+            alert("Por favor, digite o preço!");
+            return;
+        }
+        payload.price = priceInput.value;
+    }
+
     try {
         const res = await safeFetch(`${API_BASE_URL}/${currentTarget}`, {
             method: 'POST',
@@ -1137,14 +1168,22 @@ injectVersion();
             credentials: 'include',
             body: JSON.stringify(payload)
         });
+
         if (res.ok) {
-            if (nameInput) nameInput.value = '';
+            alert("Salvo com sucesso!");
+            nameInput.value = '';
             if (priceInput) priceInput.value = '';
-            await refreshModalList();
-            await loadFormOptions();
-            alert("Salvo!");
+            
+            await refreshModalList(); // Atualiza a lista de exclusão
+            await loadFormOptions();  // Atualiza os selects do formulário principal
+        } else {
+            const err = await res.json();
+            alert("Erro ao salvar: " + (err.mensagem || "Erro desconhecido"));
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error("Erro no salvamento:", e);
+        alert("Não foi possível conectar ao servidor.");
+    }
 };
 
 (window as any).deleteCrudItem = async () => {
