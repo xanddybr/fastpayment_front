@@ -885,7 +885,7 @@ const renderAdminDashboard = async () => {
                     </div>
                     <div class="md:col-span-3 ml-38">
                         <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Vagas</label>
-                        <input type="number" id="vagas-input" min="0" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
+                        <input type="number" id="vagas-input" min="0" placeholder="Qtd" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
                     </div>
                     <div class="md:col-span-1">
                         <button type="submit" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase hover:bg-blue-700 transition-all shadow-md">
@@ -899,7 +899,7 @@ const renderAdminDashboard = async () => {
                     <thead class="bg-slate-50 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
                         <tr>
                             <th class="p-4">Dia</th>
-                            <th class="p-4">Data</th>
+                            <th class="p-4 text-center">Data</th>
                             <th class="p-4">Evento</th>
                             <th class="p-4">Tipo</th>
                             <th class="p-4 text-center">Preço</th>
@@ -952,14 +952,14 @@ const loadAdminTableData = async () => {
             return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 text-slate-700">
                     <td class="p-4 font-bold text-slate-900">${getDayName(item.scheduled_at)}</td>
-                    <td class="p-4 text-center font-bold text-slate-500 uppercase text-[13px] tracking-tight"><div class="font-medium">${dataInicio.toLocaleDateString('pt-BR')} - ${exibicaoHorario}</div></td>
+                    <td class="p-4 font-bold text-slate-900">${dataInicio.toLocaleDateString('pt-BR')} & ${horaInicio} - ${horaFim}</td>
                     <td class="p-4 font-bold text-slate-900">${item.event_name}</td>
-                    <td class="p-4 text-blue-600 font-semibold">${item.type_name || '-'}</td>
-                    <td class="p-4 text-center font-black text-slate-900">R$ ${item.event_price}</td>
-                    <td class="p-4 text-center font-bold text-slate-500 uppercase text-[11px] tracking-tight">${item.unit_name}</td>
+                    <td class="p-4 font-bold text-slate-900">${item.type_name || '-'}</td>
+                    <td class="p-4 font-bold text-slate-900">R$ ${item.event_price}</td>
+                    <td class="p-4 font-bold text-slate-900">${item.unit_name}</td>
                     <td class="p-4 text-center">
-                        <span class="px-3 py-1 rounded-full font-black text-[10px] uppercase ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
-                            ${item.vacancies} Vagas
+                        <span class="px-3 py-1 rounded-full font-black text-[15px] uppercase ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
+                            ${item.vacancies}
                         </span>
                     </td>
                     <td class="p-4 text-center">
