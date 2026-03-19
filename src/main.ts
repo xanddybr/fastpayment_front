@@ -3,13 +3,13 @@ import './style.css';
 // --- CONFIGURAÇÃO HÍBRIDA DA API ---
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:8080' 
-    : 'https://misturadeluz.com/fastpayment/api/public';
+    : 'https://misturadeluz.com/agenda/api/public';
 
-const APP_VERSION = "v1.0.0 ";
+const APP_VERSION = "v0.0.0beta";
 
 let inscriptionsCache: any[] = [];
 let modalOriginalHTML: string = ''; 
-let selectedEvent = { id: 0, name: '' };
+let selectedEvent = { id: 0, name: ''    };
 let currentTarget: 'events' | 'units' | 'event-types' = 'events';
 
 const getSections = () => ({
@@ -20,15 +20,10 @@ const getSections = () => ({
     login:     document.querySelector<HTMLDivElement>('#login')
 });
      
-// 1. Defina a função safeFetch logo abaixo das suas constantes de URL
 const safeFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(url, options);
-
-    // Se o SessionMiddleware retornar 401 (Unauthorized)
     if (response.status === 401) {
-            const data = await response.json();
-            const msg = "Sessão expirou por falta de atividade";
-            alert(msg);
+        alert("Sessão expirou por falta de atividade");
         localStorage.removeItem('admin_full_name');
         window.location.href = 'login.html';
     } 
@@ -36,9 +31,7 @@ const safeFetch = async (url: string, options: RequestInit = {}) => {
 };
 
 const injectVersion = () => {
-    // Procura por todos os elementos que precisam da versão
-    const elements = document.querySelectorAll('.app-version');
-    elements.forEach(el => {
+    document.querySelectorAll('.app-version').forEach(el => {
         el.textContent = APP_VERSION;
     });
 };
@@ -59,8 +52,10 @@ const otpInput = document.querySelector<HTMLInputElement>('#otp-code')!;
 
 const btnSend = document.querySelector<HTMLButtonElement>('#btn-send-otp')!;
 const btnVerify = document.querySelector<HTMLButtonElement>('#btn-verify-otp')!;
+const urlParams = new URLSearchParams(window.location.search);
+const paymentStatus = urlParams.get('collection_status') || urlParams.get('status');
 
-// --- ROTEADOR ---
+
 const handleRouting = async () => {
     const path = window.location.pathname;
     const hash = window.location.hash;
@@ -115,14 +110,8 @@ const handleRouting = async () => {
     }
 
     injectVersion();
-};  
+}; 
 
-const checkAuth = async () => {
-    try {
-        const res = await safeFetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
-        return res.ok;
-    } catch { return false; }
-};
 
 const hideAllSections = () => {
     const activeSections = getSections();
@@ -250,122 +239,111 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
         }
 };
 
-const nextStep = (current: number) => {
-    const currentSection = document.querySelector(`#reg-step-${current}`);
-    const nextSection = document.querySelector(`#reg-step-${current + 1}`);
-    
-    if (currentSection && nextSection) {
-        currentSection.classList.add('hidden');
-        nextSection.classList.remove('hidden');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-};
-
-const prevStep = (current: number) => {
-    const currentSection = document.querySelector(`#reg-step-${current}`);
-    const prevSection = document.querySelector(`#reg-step-${current - 1}`);
-    
-    if (currentSection && prevSection) {
-        currentSection.classList.add('hidden');
-        prevSection.classList.remove('hidden');
-    }
-};
-
-const finalizarInscricao = async () => {
-    const form = document.querySelector<HTMLFormElement>('#form-inscricao')!;
-    const formData = new FormData(form);
-    const rawData = Object.fromEntries(formData);
-
-    const payload = {
-        // Dados da Pessoa
-        full_name: rawData.full_name,
-        email: rawData.email,
-        phone: rawData.phone,
-        profession: rawData.profession,
-        location: `${rawData.neighborhood}, ${rawData.city}`,
-        
-        // Dados da Inscrição
-        schedule_id: (window as any).selectedEventId,
-        
-        // Dados da Anamnese (Ficha Técnica)
-        is_medium: rawData.is_medium === 'on' ? 1 : 0,
-        is_tule_member: rawData.is_tule_member === 'on' ? 1 : 0,
-        religion: rawData.religion,
-        course_reason: rawData.course_reason,
-        expectations: rawData.expectations,
-        obs_motived: rawData.obs_motived,
-        first_time: rawData.first_time === 'on' ? 1 : 0
-    };
-
-    // Chamada para o seu Controller de Inscrição
-    const res = await fetch(`${API_BASE_URL}/register-student`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-        alert("✨ Inscrição concluída! A nossa equipa entrará em contacto em breve.");
-        window.location.href = "/agenda"; // Passo 6: Retorno para a agenda
-    }
-};
-
 btnSend.addEventListener('click', async () => {
     const email = emailInput.value.trim();
+    // Forçamos o scheduleId a ser um número inteiro para o PHP não dar erro 400
+    const scheduleId = parseInt((window as any).selectedEventId); 
 
     if (!email || !email.includes('@')) {
         alert("Por favor, insira um e-mail válido.");
         return;
     }
 
-    // Desativa o botão para evitar cliques duplos
+    if (isNaN(scheduleId)) {
+        alert("Erro: Selecione um evento na agenda primeiro.");
+        return;
+    }
+
     btnSend.disabled = true;
     btnSend.innerHTML = "Verificando...";
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/check-payment`, {
+    // Log para você ver no F12 se os dados estão saindo certos
+    console.log("Enviando para validação:", { email, schedule_id: scheduleId });
+
+   try {
+    const response = await fetch(`${API_BASE_URL}/api/check-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, schedule_id: scheduleId })
+    });
+
+    const result = await response.json();
+
+    if (result.has_paid) {
+        // CASO 1: JÁ PAGOU -> VAI DIRETO PARA A FICHA
+        if (confirm("Pagamento aprovado encontrado! Ir para a ficha de inscrição?")) {
+            (window as any).isPrePaid = true;
+            (window as any).showRegistrationForm((window as any).selectedSchedule);
+        }
+    } else {
+        // CASO 2: NÃO PAGOU -> ENVIA OTP PARA VALIDAR E-MAIL PRIMEIRO
+        console.log("Iniciando validação de e-mail (OTP)...");
+        
+        const otpRes = await fetch(`${API_BASE_URL}/api/auth/generate-code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email: email,
-                schedule_id: (window as any).selectedEventId 
-            })
+            body: JSON.stringify({ email })
         });
 
-        const result = await response.json();
-
-        if (result.has_paid) {
-            // Caso 1: Já existe pagamento aprovado sem inscrição
-            if (confirm("Identificamos um pagamento aprovado para este e-mail. Deseja realizar a inscrição agora ou prefere efetuar um novo pagamento para outra vaga?")) {
-                // Usuário escolheu usar o pagamento existente
-                (window as any).isPrePaid = true;
-                (window as any).showRegistrationForm((window as any).selectedSchedule);
-            } else {
-                // Usuário escolheu pagar novamente (nova vaga)
-                prosseguirParaCheckout();
-            }
+        if (otpRes.ok) {
+            alert("Enviamos um código de 6 dígitos para o seu e-mail.");
+            hideAllSections();
+            getSections().otp?.classList.remove('hidden'); // Mostra a tela de digitar o código
         } else {
-            // Caso 2: Não há pagamentos aprovados, vai para o fluxo normal
-            prosseguirParaCheckout();
+            alert("Erro ao enviar código de validação.");
         }
+    }
+        } catch (error) {
+            console.error("Erro no fluxo:", error);
+        }
+        
+});
 
-    } catch (error) {
-        console.error("Erro na validação:", error);
-        alert("Erro ao validar e-mail. Tente novamente.");
+// 1. Vincule o clique ao botão de verificar (ajuste o ID se for outro no seu HTML)
+btnVerify?.addEventListener('click', async () => {
+    const codeInput = document.querySelector<HTMLInputElement>('#otp-code');
+    const emailInput = document.querySelector<HTMLInputElement>('#email');
+    
+    const code = codeInput?.value.trim();
+    const email = emailInput?.value.trim();
+
+    if (!code || code.length < 6) {
+        alert("Por favor, insira o código de 6 dígitos enviado ao seu e-mail.");
+        return;
+    }
+
+    btnVerify.disabled = true;
+    btnVerify.innerHTML = "Validando...";
+
+    try {
+        // 2. Chama a API para conferir se o código está certo
+        const res = await fetch(`${API_BASE_URL}/api/auth/validate-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code })
+        });
+
+        if (res.ok) {
+            // --- SUCESSO! E-MAIL VALIDADO ---
+            console.log("Código validado! Abrindo Mercado Pago...");
+            
+            // 3. AGORA SIM, chama a função que abre o pagamento
+            await proceedToCheckout(); 
+            
+        } else {
+            const data = await res.json();
+            alert(data.error || "Código inválido ou expirado.");
+        }
+    } catch (e) {
+        console.error("Erro na validação do código:", e);
+        alert("Erro ao conectar com o servidor para validar o código.");
     } finally {
-        btnSend.disabled = false;
-        btnSend.innerHTML = "Validar E-mail e Prosseguir →";
+        btnVerify.disabled = false;
+        btnVerify.innerHTML = "Verificar Código e Pagar";
     }
 });
 
 // Função auxiliar para o Passo 3 do Roteiro
-const prosseguirParaCheckout = () => {
-    (window as any).isPrePaid = false;
-    // Aqui chamaremos a função que você já deve ter de Checkout do Mercado Pago
-    // enviando (window as any).selectedSchedule
-    console.log("Encaminhando para Passo 3: Checkout...");
-    // await iniciarCheckoutMercadoPago((window as any).selectedSchedule);
-};
 
 emailInput?.addEventListener('blur', async () => {
     const email = emailInput.value.trim();
@@ -380,7 +358,7 @@ emailInput?.addEventListener('blur', async () => {
 
     if (email.length > 5 && email.includes('@')) {
         try {
-            const response = await fetch(`${API_BASE_URL}/check-payment`, {
+            const response = await fetch(`${API_BASE_URL}/api/check-payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email })
@@ -462,17 +440,9 @@ const setupRegistrationSubmit = () => {
     };
 };
 
-
 (window as any).validateCodeAndPay = async () => {
-    const codeInput = document.querySelector<HTMLInputElement>('#otp-code');
-    const emailInput = document.querySelector<HTMLInputElement>('#email');
-    const code = codeInput?.value.trim();
-    const email = emailInput?.value.trim();
-
-    if (!code || code.length < 6) {
-        alert("Por favor, insira o código de 6 dígitos enviado ao seu e-mail.");
-        return;
-    }
+    const code = document.querySelector<HTMLInputElement>('#otp-code')?.value.trim();
+    const email = document.querySelector<HTMLInputElement>('#email')?.value.trim();
 
     try {
         const res = await fetch(`${API_BASE_URL}/api/auth/validate-code`, {
@@ -482,21 +452,21 @@ const setupRegistrationSubmit = () => {
         });
 
         if (res.ok) {
-            // Sucesso na validação -> Prossegue para o pagamento
+            // E-MAIL VALIDADO! AGORA SIM VAI PARA O MERCADO PAGO
+            alert("E-mail validado com sucesso! Redirecionando para o pagamento...");
             proceedToCheckout(); 
         } else {
-            const data = await res.json();
-            alert(data.error || "Código inválido ou expirado.");
+            alert("Código inválido ou expirado.");
         }
     } catch (e) {
-        alert("Erro ao validar código.");
+        alert("Erro na validação do código.");
     }
 };
 
 const startPaymentMonitoring = (email: string, scheduleId: number) => {
     const interval = setInterval(async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/check-payment`, {
+            const res = await fetch(`${API_BASE_URL}/api/check-payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, schedule_id: scheduleId })
@@ -504,45 +474,42 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
             const data = await res.json();
 
             if (data.has_paid) {
+                // PARA DE VIGIAR
                 clearInterval(interval);
-                alert("✅ Pagamento identificado com sucesso!");
+                
+                // ABRE O FORMULÁRIO AUTOMATICAMENTE
+                alert("✅ Pagamento confirmado! Liberando sua ficha de inscrição...");
                 (window as any).isPrePaid = true;
                 (window as any).showRegistrationForm((window as any).selectedSchedule);
             }
         } catch (e) {
-            console.error("Erro ao monitorar pagamento");
+            console.error("Monitorando...");
         }
-    }, 4000); 
-};  
+    }, 5000); // 5 segundos
+};
 
 const proceedToCheckout = async () => {
-    const scheduleId = (window as any).selectedEventId;
+    const scheduleId = parseInt((window as any).selectedEventId);
     const email = document.querySelector<HTMLInputElement>('#email')?.value.trim();
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, schedule_id: scheduleId })
-        });
+    const res = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, schedule_id: scheduleId })
+    });
 
-        const data = await res.json();
+    const data = await res.json();
 
-        // No trecho dentro do proceedToCheckout
-                if (data.init_point) {
-                    window.open(data.init_point, '_blank');
-                    alert("O pagamento foi aberto em uma nova janela. Esta página será atualizada automaticamente.");
-
-                    // A mágica para o TS parar de reclamar: 
-                    // Verificamos se o email existe. Se existir, ele "garante" que é string.
-                    if (email) {
-                        startPaymentMonitoring(email, scheduleId);
-                    } else {
-                        console.error("Erro: E-mail não encontrado para monitoramento.");
-                }
-        }
-    } catch (e) {
-        alert("Erro ao processar checkout.");
+    if (res.ok && data.init_point) {
+        // ABRE EM NOVA GUIA
+        window.open(data.init_point, '_blank');
+        
+        alert("Pagamento aberto! Assim que você concluir no Mercado Pago, esta tela liberará sua inscrição automaticamente.");
+        
+        // COMEÇA A MONITORAR (Vigiar o banco)
+        if (email) startPaymentMonitoring(email, scheduleId);
+    } else {
+        alert("Erro: " + data.error);
     }
 };
 
@@ -933,6 +900,7 @@ const renderAdminDashboard = async () => {
 };
 
 // --- CARREGAMENTO DE DADOS (ADMIN) ---
+
 const loadAdminTableData = async () => {
     const tbody = document.querySelector('#adminTableBody');
     if (!tbody) return;
@@ -951,13 +919,13 @@ const loadAdminTableData = async () => {
 
             return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 text-slate-700">
-                    <td class="p-4 font-bold text-slate-900">${getDayName(item.scheduled_at)}</td>
-                    <td class="p-4 font-bold text-slate-900">${dataInicio.toLocaleDateString('pt-BR')} & ${horaInicio} - ${horaFim}</td>
-                    <td class="p-4 font-bold text-slate-900">${item.event_name}</td>
-                    <td class="p-4 font-bold text-slate-900">${item.type_name || '-'}</td>
-                    <td class="p-4 font-bold text-slate-900">R$ ${item.event_price}</td>
-                    <td class="p-4 font-bold text-slate-900">${item.unit_name}</td>
-                    <td class="p-4 text-center">
+                    <td class="p-4  text-slate-900">${getDayName(item.scheduled_at)}</td>
+                    <td class="p-4  text-slate-900">${dataInicio.toLocaleDateString('pt-BR')} & ${horaInicio} - ${horaFim}</td>
+                    <td class="p-4  text-slate-900">${item.event_name}</td>
+                    <td class="p-4  text-slate-900">${item.type_name || '-'}</td>
+                    <td class="p-4  text-slate-900">R$ ${item.event_price}</td>
+                    <td class="p-4  text-slate-900">${item.unit_name}</td>
+                    <td class="p-4  text-center">
                         <span class="px-3 py-1 rounded-full font-black text-[15px] uppercase ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
                             ${item.vacancies}
                         </span>
@@ -1133,6 +1101,7 @@ injectVersion();
         alert("Erro ao conectar com o servidor.");
     }
 };
+
 
 (window as any).deleteSchedule = async (id: number) => {
     if (!confirm("Excluir?")) return;
