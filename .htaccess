@@ -1,0 +1,10 @@
+RewriteEngine On
+RewriteBase /agenda/
+
+# 1. Se o arquivo ou pasta existir fisicamente (como imagens, CSS, JS), abra normal
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# 2. Caso contrário, mande TUDO para o index.html
+# É aqui que o roteamento do seu Vite (ou JavaScript puro) assume o controle
+RewriteRule . index.html [L]

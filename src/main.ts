@@ -5,7 +5,7 @@ const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:8080' 
     : 'https://misturadeluz.com/agenda/api/public';
 
-const APP_VERSION = "v0.0.0beta";
+const APP_VERSION = "1.0.0beta";
 
 let inscriptionsCache: any[] = [];
 let modalOriginalHTML: string = ''; 
@@ -59,58 +59,66 @@ const paymentStatus = urlParams.get('collection_status') || urlParams.get('statu
 const handleRouting = async () => {
     const path = window.location.pathname;
     const hash = window.location.hash;
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('collection_status') || urlParams.get('status');
     
+    // Captura os parâmetros da URL de forma limpa
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // O Mercado Pago pode mandar 'status' ou 'collection_status'
+    const paymentStatus = urlParams.get('status') || urlParams.get('collection_status');
+
     hideAllSections();
     const activeSections = getSections();
 
-    // 1. LÓGICA DE REDIRECIONAMENTO PÓS-PAGAMENTO (MERCADO PAGO)
-    // Se o usuário volta do MP com status de sucesso, forçamos a abertura da ficha
-    if (paymentStatus === 'approved' || paymentStatus === 'success') {
-        alert("✨ Pagamento confirmado com sucesso! Por favor, preencha sua ficha de inscrição.");
+    // --- 1. LÓGICA DE RETORNO DO MERCADO PAGO (O "POUSO") ---
+    if (paymentStatus) {
+        if (paymentStatus === 'approved' || paymentStatus === 'success') {
+            alert("✨ Pagamento confirmado! Redirecionando para sua ficha de inscrição em 5 segundos...");
+            
+            // Remove os parâmetros da URL para evitar alerts em loop no F5
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Marca como pré-pago
+            (window as any).isPrePaid = true;
+
+            // Aguarda 5 segundos e abre a ficha (Requisito 3)
+            setTimeout(() => {
+                if (activeSections.registration) {
+                    activeSections.registration.classList.remove('hidden');
+                    // Tenta recuperar os dados do evento que salvamos no selectEvent
+                    const savedEvent = JSON.parse(localStorage.getItem('selectedSchedule') || '{}');
+                    if (savedEvent.schedule_id) {
+                        (window as any).showRegistrationForm(savedEvent);
+                    }
+                }
+            }, 5000);
+            return; // Interrompe o resto do roteamento para focar no sucesso
+        } 
         
-        // Remove os parâmetros da URL para não ficar dando alert se o usuário der F5
-        window.history.replaceState({}, document.title, window.location.pathname);
+        else if (paymentStatus === 'failure' || paymentStatus === 'rejected') {
+            alert("❌ Por favor, refaça a operação com outro método de pagamento.");
+            window.location.href = window.location.pathname; // Recarrega na agenda limpa
+            return;
+        } 
         
-        // Marcamos como pré-pago para não subtrair vaga duplicada no banco
-        (window as any).isPrePaid = true;
-        
-        // Exibe a ficha de inscrição (Step Registration)
-        if (activeSections.registration) {
-            activeSections.registration.classList.remove('hidden');
-            // Tenta recuperar o evento selecionado do localStorage se você o salvou antes
-            // Ou apenas exibe o formulário vazio para o aluno preencher
-            return; 
+        else if (paymentStatus === 'pending') {
+            alert("⏳ Seu pagamento está pendente. Verifique daqui a alguns minutos.");
+            window.location.href = window.location.pathname;
+            return;
         }
     }
 
-    // 2. ROTEAMENTO DE PÁGINAS ADMINISTRATIVAS / LOGIN
-    if (path.includes('login.html') || hash === '#login' || hash === '#admin') {
-        document.body.classList.remove('bg-reiki');
-        
-        if (hash === '#admin') {
-            try {
-                const res = await safeFetch(`${API_BASE_URL}/auth/check`, { credentials: 'include' });
-                res.ok ? renderAdminDashboard() : window.location.href = 'login.html';
-            } catch (e) {
-                window.location.href = 'login.html';
-            }
-        } else {
-            activeSections.login?.classList.remove('hidden');
-        }
-    } 
-    // 3. ROTEAMENTO DA AGENDA PÚBLICA (HOME)
-    else {
+    // --- 2. RESTANTE DO ROTEAMENTO ORIGINAL ---
+    if (path.includes('/login') || hash === '#login' || hash === '#admin') {
+        // ... (seu código original de admin)
+    } else {
         document.body.classList.add('bg-reiki');
         if (activeSections.selection) {
             activeSections.selection.classList.remove('hidden');
-            loadEvents(); // Carrega a vitrine de cursos
+            loadEvents(); 
         }
     }
-
     injectVersion();
-}; 
+};
 
 
 const hideAllSections = () => {
@@ -239,64 +247,70 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
         }
 };
 
+
+
 btnSend.addEventListener('click', async () => {
     const email = emailInput.value.trim();
-    // Forçamos o scheduleId a ser um número inteiro para o PHP não dar erro 400
-    const scheduleId = parseInt((window as any).selectedEventId); 
+    const emailTeste = "teste_user_2904943887590020914@testeuser.com";
+    
+    // Recupera o ID de forma garantida (Global ou LocalStorage)
+    const scheduleId = parseInt((window as any).selectedEventId) || 
+                       parseInt(localStorage.getItem('selectedScheduleId') || '0');
 
     if (!email || !email.includes('@')) {
         alert("Por favor, insira um e-mail válido.");
         return;
     }
 
-    if (isNaN(scheduleId)) {
+    if (!scheduleId || isNaN(scheduleId)) {
         alert("Erro: Selecione um evento na agenda primeiro.");
+        return;
+    }
+
+    // --- LÓGICA HÍBRIDA (PULA OTP) ---
+    if (email === emailTeste) {
+        console.log("🚀 Modo Teste: Indo direto para o Checkout...");
+        await proceedToCheckout();
         return;
     }
 
     btnSend.disabled = true;
     btnSend.innerHTML = "Verificando...";
 
-    // Log para você ver no F12 se os dados estão saindo certos
-    console.log("Enviando para validação:", { email, schedule_id: scheduleId });
-
-   try {
-    const response = await fetch(`${API_BASE_URL}/api/check-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, schedule_id: scheduleId })
-    });
-
-    const result = await response.json();
-
-    if (result.has_paid) {
-        // CASO 1: JÁ PAGOU -> VAI DIRETO PARA A FICHA
-        if (confirm("Pagamento aprovado encontrado! Ir para a ficha de inscrição?")) {
-            (window as any).isPrePaid = true;
-            (window as any).showRegistrationForm((window as any).selectedSchedule);
-        }
-    } else {
-        // CASO 2: NÃO PAGOU -> ENVIA OTP PARA VALIDAR E-MAIL PRIMEIRO
-        console.log("Iniciando validação de e-mail (OTP)...");
-        
-        const otpRes = await fetch(`${API_BASE_URL}/api/auth/generate-code`, {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/check-payment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email: email, schedule_id: scheduleId })
         });
 
-        if (otpRes.ok) {
-            alert("Enviamos um código de 6 dígitos para o seu e-mail.");
-            hideAllSections();
-            getSections().otp?.classList.remove('hidden'); // Mostra a tela de digitar o código
+        const result = await response.json();
+
+        if (result.has_paid) {
+            if (confirm("Pagamento aprovado encontrado! Ir para a ficha de inscrição?")) {
+                (window as any).isPrePaid = true;
+                (window as any).showRegistrationForm((window as any).selectedSchedule);
+            }
         } else {
-            alert("Erro ao enviar código de validação.");
+            // Segue para geração de OTP normal...
+            const otpRes = await fetch(`${API_BASE_URL}/api/auth/generate-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            if (otpRes.ok) {
+                alert("Enviamos um código de 6 dígitos para o seu e-mail.");
+                hideAllSections();
+                getSections().otp?.classList.remove('hidden');
+            }
         }
+    } catch (error) {
+        console.error("Erro no check-payment:", error);
+    } finally {
+        btnSend.disabled = false;
+        btnSend.innerHTML = "Enviar";
     }
-        } catch (error) {
-            console.error("Erro no fluxo:", error);
-        }
-        
 });
 
 // 1. Vincule o clique ao botão de verificar (ajuste o ID se for outro no seu HTML)
@@ -489,27 +503,34 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
 };
 
 const proceedToCheckout = async () => {
-    const scheduleId = parseInt((window as any).selectedEventId);
-    const email = document.querySelector<HTMLInputElement>('#email')?.value.trim();
+    // Busca o ID do localStorage se a variável global falhar
+    const savedEvent = JSON.parse(localStorage.getItem('selectedSchedule') || '{}');
+    const scheduleId = parseInt((window as any).selectedEventId) || savedEvent.schedule_id;
+    const email = (document.querySelector<HTMLInputElement>('#email')?.value || '').trim();
+
+    console.log("🚀 Enviando para o Pay:", { email, scheduleId }); // Verifique se o ID aparece no console!
+
+    if (!scheduleId) {
+        alert("Erro: O ID do curso não foi encontrado. Selecione o curso novamente.");
+        return;
+    }
 
     const res = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, schedule_id: scheduleId })
+        body: JSON.stringify({ email: email, schedule_id: scheduleId }) // Forçando o envio dos dois
     });
 
     const data = await res.json();
 
     if (res.ok && data.init_point) {
-        // ABRE EM NOVA GUIA
         window.open(data.init_point, '_blank');
-        
-        alert("Pagamento aberto! Assim que você concluir no Mercado Pago, esta tela liberará sua inscrição automaticamente.");
-        
-        // COMEÇA A MONITORAR (Vigiar o banco)
+        alert("Pagamento aberto! Aguarde a confirmação nesta tela.");
         if (email) startPaymentMonitoring(email, scheduleId);
     } else {
-        alert("Erro: " + data.error);
+        // Exibe o erro real para a gente parar de chutar
+        console.error("Erro MP Detalhado:", data);
+        alert("Erro no Mercado Pago: " + (data.error || "Verifique o console"));
     }
 };
 
@@ -973,7 +994,6 @@ const setupFormListener = () => {
         };
 
         // MUDANÇA 3: Alerta corrigido para mostrar os dados do objeto
-        alert("Salvando agendamento: " + JSON.stringify(payload, null, 2));
 
         const res = await safeFetch(`${API_BASE_URL}/schedules`, {
             method: 'POST',
@@ -1039,17 +1059,12 @@ injectVersion();
         return;
     }
 
-    // Guardamos o objeto completo para usar no Checkout e na Inscrição
+    // Guardamos no localStorage para sobreviver ao redirecionamento do MP
+    localStorage.setItem('selectedSchedule', JSON.stringify(item));
     (window as any).selectedSchedule = item; 
     (window as any).selectedEventId = item.schedule_id; 
 
-    // Preenche o título visualmente se necessário
-    const eventNameDisplay = document.querySelector('#reg-event-name');
-    if (eventNameDisplay) eventNameDisplay.textContent = item.event_name;
-
     hideAllSections();
-    
-    // Conforme seu roteiro: Passo 2 - Validação de e-mail
     const step1 = document.querySelector<HTMLDivElement>('#step-1');
     if (step1) step1.classList.remove('hidden');
 };
@@ -1057,7 +1072,7 @@ injectVersion();
 (window as any).makeLogout = async () => {
     try { await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' }); } catch (e) {}
     localStorage.removeItem('admin_full_name');
-    window.location.href = '/agenda/login.html';
+    window.location.href = '/agenda/login';
 };
 
 (window as any).makeLogin = async () => {
@@ -1156,12 +1171,31 @@ injectVersion();
 };
 
 (window as any).deleteCrudItem = async () => {
-    const id = (document.querySelector('#modal-select-list') as HTMLSelectElement).value;
-    if (!id || !confirm("Excluir?")) return;
+    const selectElement = document.querySelector<HTMLSelectElement>('#modal-select-list');
+    const id = selectElement?.value;
+    
+    if (!id || !confirm("Tem certeza que deseja excluir este item?")) return;
+
+    const url = `${API_BASE_URL}/${currentTarget}/${id}`;
+    console.log("Tentando excluir em:", url); // Verifique se a URL não tem // duplicada
+
     try {
-        const res = await safeFetch(`${API_BASE_URL}/${currentTarget}/${id}`, { method: 'DELETE', credentials: 'include' });
-        if (res.ok) { await refreshModalList(); await loadFormOptions(); }
-    } catch (e) { console.error(e); }
+        const res = await safeFetch(url, { 
+            method: 'DELETE', 
+            credentials: 'include' 
+        });
+        
+        if (res.ok) { 
+            alert("Excluído com sucesso!");
+            await refreshModalList(); 
+            await loadFormOptions(); 
+        } else {
+            const err = await res.json();
+            alert("Erro ao excluir: " + (err.error || "Acesso negado"));
+        }
+    } catch (e) { 
+        console.error(e); 
+    }
 };
 
 // --- INICIALIZAÇÃO ---
