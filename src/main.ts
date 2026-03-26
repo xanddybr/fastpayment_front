@@ -56,6 +56,11 @@ const urlParams = new URLSearchParams(window.location.search);
 const paymentStatus = urlParams.get('collection_status') || urlParams.get('status');
 
 
+
+// No início do seu main.ts
+
+
+
 const handleRouting = async () => {
     const path = window.location.pathname;
     const hash = window.location.hash;
@@ -247,6 +252,21 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
         }
 };
 
+const checkPaymentStatus = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get('status');
+
+    if (status === 'approved') {
+        // Remove os parâmetros da URL para ficar limpo
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Chama aquela função de desenho da tela que fizemos
+        renderSuccessPage();
+    }
+};
+
+checkPaymentStatus();
+// Executa assim que o
 
 
 btnSend.addEventListener('click', async () => {
@@ -429,8 +449,8 @@ const setupRegistrationSubmit = () => {
 
         // MUDANÇA 2: Lógica de Decisão do Endpoint (Direct vs Normal)
         const endpoint = (window as any).isPrePaid 
-            ? `${API_BASE_URL}/api/public/subscribe-direct` 
-            : `${API_BASE_URL}/api/public/register`;
+            ? `${API_BASE_URL}/api/register/subscribers` 
+            : `${API_BASE_URL}/api/register/subscribers`;
 
         try {
             const res = await fetch(endpoint, {
@@ -920,7 +940,91 @@ const renderAdminDashboard = async () => {
     }
 };
 
+
+const renderSuccessPage = () => {
+    // Seleciona o elemento principal onde sua aplicação renderiza
+    const app = document.querySelector<HTMLDivElement>('#app');
+
+    if (app) {
+        app.innerHTML = `
+            <div style="
+                min-height: 100vh; 
+                display: flex; 
+                flex-direction: column; 
+                align-items: center; 
+                justify-content: center; 
+                background-color: #f9fafb; 
+                font-family: sans-serif;
+                padding: 20px;
+                text-align: center;
+            ">
+                <div style="
+                    max-width: 400px; 
+                    width: 100%; 
+                    background: white; 
+                    padding: 40px; 
+                    border-radius: 16px; 
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+                ">
+                    <div style="
+                        width: 80px; 
+                        height: 80px; 
+                        background-color: #dcfce7; 
+                        border-radius: 50%; 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        margin: 0 auto 24px auto;
+                    ">
+                        <svg style="width: 48px; height: 48px; color: #16a34a;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+
+                    <h1 style="color: #111827; font-size: 24px; font-weight: 700; margin-bottom: 8px;">
+                        Pagamento Realizado!
+                    </h1>
+                    
+                    <p style="color: #4b5563; font-size: 16px; margin-bottom: 32px; line-height: 1.5;">
+                        Seu pagamento foi confirmado. Agora você já pode fechar esta página para prosseguir com a inscrição.
+                    </p>
+
+                    <button id="btnClose" style="
+                        width: 100%; 
+                        background-color: #16a34a; 
+                        color: white; 
+                        border: none; 
+                        padding: 14px; 
+                        border-radius: 8px; 
+                        font-weight: 600; 
+                        cursor: pointer;
+                        transition: background 0.2s;
+                    ">
+                        Fechar Janela
+                    </button>
+                </div>
+                
+                <p style="margin-top: 24px; color: #9ca3af; font-size: 12px;">
+                    FastPayment &copy; 2026
+                </p>
+            </div>
+        `;
+
+        // Adiciona o evento de fechar a janela ao botão
+        document.querySelector('#btnClose')?.addEventListener('click', () => {
+            window.close();
+            // Caso o window.close() seja bloqueado pelo navegador (comum em abas não abertas por script)
+            // Você pode redirecionar para a home:
+            // window.location.href = '/';
+        });
+    }
+};
+
 // --- CARREGAMENTO DE DADOS (ADMIN) ---
+
+if (urlParams.get('collection_status') === 'approved') {
+    renderSuccessPage();
+}
 
 const loadAdminTableData = async () => {
     const tbody = document.querySelector('#adminTableBody');
