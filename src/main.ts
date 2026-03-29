@@ -1,5 +1,14 @@
 import './style.css';
 
+const urlParams = new URLSearchParams(window.location.search);
+const mpStatus = urlParams.get('status') || urlParams.get('collection_status');
+
+// Se o status aparecer por um milissegundo, a gente trava ele aqui
+if (mpStatus === 'approved' || mpStatus === 'success') {
+    sessionStorage.setItem('mp_success_flag', 'true');
+    console.log("🎯 [RASTREADOR] Pagamento detectado e travado na sessão!");
+}
+
 // --- CONFIGURAÇÃO HÍBRIDA DA API ---
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:8080' 
@@ -20,6 +29,18 @@ const getSections = () => ({
     login:     document.querySelector<HTMLDivElement>('#login')
 });
      
+
+const checkIncomingPayment = () => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status') || params.get('collection_status');
+    
+    if (status === 'approved' || status === 'success') {
+        sessionStorage.setItem('mp_success_flag', 'true');
+        console.log("🎯 [Scanner] Pagamento capturado via redirecionamento!");
+    }
+};
+checkIncomingPayment();
+
 const safeFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(url, options);
     if (response.status === 401) {
@@ -52,78 +73,6 @@ const otpInput = document.querySelector<HTMLInputElement>('#otp-code')!;
 
 const btnSend = document.querySelector<HTMLButtonElement>('#btn-send-otp')!;
 const btnVerify = document.querySelector<HTMLButtonElement>('#btn-verify-otp')!;
-const urlParams = new URLSearchParams(window.location.search);
-const paymentStatus = urlParams.get('collection_status') || urlParams.get('status');
-
-
-
-// No início do seu main.ts
-
-
-
-const handleRouting = async () => {
-    const path = window.location.pathname;
-    const hash = window.location.hash;
-    
-    // Captura os parâmetros da URL de forma limpa
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    // O Mercado Pago pode mandar 'status' ou 'collection_status'
-    const paymentStatus = urlParams.get('status') || urlParams.get('collection_status');
-
-    hideAllSections();
-    const activeSections = getSections();
-
-    // --- 1. LÓGICA DE RETORNO DO MERCADO PAGO (O "POUSO") ---
-    if (paymentStatus) {
-        if (paymentStatus === 'approved' || paymentStatus === 'success') {
-            alert("✨ Pagamento confirmado! Redirecionando para sua ficha de inscrição em 5 segundos...");
-            
-            // Remove os parâmetros da URL para evitar alerts em loop no F5
-            window.history.replaceState({}, document.title, window.location.pathname);
-
-            // Marca como pré-pago
-            (window as any).isPrePaid = true;
-
-            // Aguarda 5 segundos e abre a ficha (Requisito 3)
-            setTimeout(() => {
-                if (activeSections.registration) {
-                    activeSections.registration.classList.remove('hidden');
-                    // Tenta recuperar os dados do evento que salvamos no selectEvent
-                    const savedEvent = JSON.parse(localStorage.getItem('selectedSchedule') || '{}');
-                    if (savedEvent.schedule_id) {
-                        (window as any).showRegistrationForm(savedEvent);
-                    }
-                }
-            }, 5000);
-            return; // Interrompe o resto do roteamento para focar no sucesso
-        } 
-        
-        else if (paymentStatus === 'failure' || paymentStatus === 'rejected') {
-            alert("❌ Por favor, refaça a operação com outro método de pagamento.");
-            window.location.href = window.location.pathname; // Recarrega na agenda limpa
-            return;
-        } 
-        
-        else if (paymentStatus === 'pending') {
-            alert("⏳ Seu pagamento está pendente. Verifique daqui a alguns minutos.");
-            window.location.href = window.location.pathname;
-            return;
-        }
-    }
-
-    // --- 2. RESTANTE DO ROTEAMENTO ORIGINAL ---
-    if (path.includes('/login') || hash === '#login' || hash === '#admin') {
-        // ... (seu código original de admin)
-    } else {
-        document.body.classList.add('bg-reiki');
-        if (activeSections.selection) {
-            activeSections.selection.classList.remove('hidden');
-            loadEvents(); 
-        }
-    }
-    injectVersion();
-};
 
 
 const hideAllSections = () => {
@@ -138,7 +87,7 @@ const getDayName = (dateString: string) => {
     return nomeFormatado
 };
 
-// --- AGENDA PÚBLICA (COM FILTROS) ---
+
 // --- AGENDA PÚBLICA (ATUALIZADA COM VAGAS) ---
 const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
    
@@ -251,22 +200,6 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
             container.innerHTML = '<p class="text-center col-span-full text-red-500">Erro ao carregar agenda.</p>'; 
         }
 };
-
-const checkPaymentStatus = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const status = urlParams.get('status');
-
-    if (status === 'approved') {
-        // Remove os parâmetros da URL para ficar limpo
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        // Chama aquela função de desenho da tela que fizemos
-        renderSuccessPage();
-    }
-};
-
-checkPaymentStatus();
-// Executa assim que o
 
 
 btnSend.addEventListener('click', async () => {
@@ -420,10 +353,12 @@ const setupRegistrationSubmit = () => {
     form.onsubmit = async (e) => {
         e.preventDefault();
 
-        const scheduleId = (window as any).selectedEventId;
+        // BUSCA HÍBRIDA: Tenta Window, se não tiver, tenta LocalStorage
+        const savedEvent = JSON.parse(localStorage.getItem('selectedSchedule') || '{}');
+        const scheduleId = (window as any).selectedEventId || savedEvent.schedule_id;
 
         if (!scheduleId) {
-            alert("Erro de sistema: O ID do evento se perdeu. Por favor, volte à tela inicial e selecione o curso novamente.");
+            alert("Erro: O ID do evento sumiu. Por favor, selecione o curso novamente.");
             return;
         }
 
@@ -544,8 +479,9 @@ const proceedToCheckout = async () => {
     const data = await res.json();
 
     if (res.ok && data.init_point) {
-        window.open(data.init_point, '_blank');
-        alert("Pagamento aberto! Aguarde a confirmação nesta tela.");
+
+        window.location.href = data.init_point;
+        
         if (email) startPaymentMonitoring(email, scheduleId);
     } else {
         // Exibe o erro real para a gente parar de chutar
@@ -554,33 +490,56 @@ const proceedToCheckout = async () => {
     }
 };
 
-
 (window as any).showRegistrationForm = (item: any) => {
+    // 1. Tenta pegar o que veio no parâmetro, se estiver vazio, pega do LocalStorage
+    const rawData = localStorage.getItem('selectedSchedule');
+    const fullItem = rawData ? JSON.parse(rawData) : item;
+
+    console.log("Exibindo formulário para o item completo:", fullItem);
+    
     hideAllSections();
-    
-    const activeSections = getSections();
-    if (activeSections.registration) {
-        activeSections.registration.classList.remove('hidden');
-    }
+    const regSection = document.querySelector<HTMLDivElement>('#step-registration');
+    if (regSection) regSection.classList.remove('hidden');
 
+    // 2. Mapeamento das Labels (Card 1) usando o FULLITEM
     const eventTitle = document.querySelector('#reg-event-name');
-    const eventType = document.querySelector('#reg-event-type');
-    const eventUnit = document.querySelector('#reg-event-unit');
-    const eventDate = document.querySelector('#reg-event-date');
+    const eventType  = document.querySelector('#reg-event-type');
+    const eventUnit  = document.querySelector('#reg-event-unit');
+    const eventDate  = document.querySelector('#reg-event-date');
 
-    if (eventTitle) eventTitle.textContent = item.event_name || item.name;
-    if (eventType) eventType.textContent = item.type_name || item.type;
-    if (eventUnit) eventUnit.textContent = item.unit_name || item.unit;
+    // IMPORTANTE: Verifique se os nomes batem com o que vem da sua API (ex: item.event_name)
+    if (eventTitle) eventTitle.textContent = fullItem.event_name || fullItem.name || "Evento";
+    if (eventType)  eventType.textContent  = fullItem.type_name  || fullItem.type || "Geral";
+    if (eventUnit)  eventUnit.textContent  = fullItem.unit_name  || fullItem.unit || "Unidade";
     
-    if (eventDate && (item.scheduled_at || item.rawDate)) {
-        const dataRef = item.scheduled_at || item.rawDate;
-        const diaSemana = getDayName(dataRef); 
-        const dataFormatada = new Date(dataRef).toLocaleDateString('pt-BR');
-        const horaFormatada = new Date(dataRef).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-        eventDate.innerHTML = `<span>📅</span> ${diaSemana}, ${dataFormatada} às ${horaFormatada}h`;
+    // ... restante da função (Data, setupRegistrationSubmit, etc)
+    
+    // 4. FORMATAÇÃO DA DATA
+    if (eventDate && (fullItem.scheduled_at || fullItem.rawDate)) {
+        const dataRef = fullItem.scheduled_at || fullItem.rawDate;
+        try {
+            const dataObjeto = new Date(dataRef.replace(/-/g, '/'));
+            const diaSemana = getDayName(dataRef); 
+            const dataFormatada = dataObjeto.toLocaleDateString('pt-BR');
+            const horaFormatada = dataObjeto.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            eventDate.innerHTML = `<span class="mr-2">📅</span> ${diaSemana}, ${dataFormatada} às ${horaFormatada}h`;
+        } catch (e) {
+            eventDate.textContent = dataRef; 
+        }
     }
 
+    // 5. Configura o envio do formulário
     setupRegistrationSubmit(); 
+
+    // 6. Preenchimento do E-mail
+    const emailInput = document.querySelector<HTMLInputElement>('#student_email');
+    if (emailInput) {
+        // Tenta pegar do campo principal ou do que veio do Mercado Pago
+        const emailSalvo = document.querySelector<HTMLInputElement>('#email')?.value || fullItem.payer_email;
+        if (emailSalvo) emailInput.value = emailSalvo;
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -1022,10 +981,6 @@ const renderSuccessPage = () => {
 
 // --- CARREGAMENTO DE DADOS (ADMIN) ---
 
-if (urlParams.get('collection_status') === 'approved') {
-    renderSuccessPage();
-}
-
 const loadAdminTableData = async () => {
     const tbody = document.querySelector('#adminTableBody');
     if (!tbody) return;
@@ -1163,10 +1118,12 @@ injectVersion();
         return;
     }
 
-    // Guardamos no localStorage para sobreviver ao redirecionamento do MP
+    // 1. SALVAMOS O OBJETO COMPLETO (Isso é o que falta para preencher o card!)
     localStorage.setItem('selectedSchedule', JSON.stringify(item));
+    
+    // 2. Setamos as variáveis globais de apoio
     (window as any).selectedSchedule = item; 
-    (window as any).selectedEventId = item.schedule_id; 
+    (window as any).selectedEventId = item.schedule_id || item.id; 
 
     hideAllSections();
     const step1 = document.querySelector<HTMLDivElement>('#step-1');
@@ -1302,6 +1259,105 @@ injectVersion();
     }
 };
 
+
+
+  const getMPStatus = () => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status') || params.get('collection_status');
+    
+    // Se achou approved na URL, salva no sessionStorage para segurança
+    if (status === 'approved' || status === 'success') {
+        sessionStorage.setItem('payment_success', 'true');
+    }
+    
+    // Retorna o status da URL ou o que estava salvo na sessão
+    return status || (sessionStorage.getItem('payment_success') === 'true' ? 'approved' : null);
+};
+
+
+// --- 1. UNIFICAÇÃO DO RASTREADOR (Substitua a partir daqui) ---
+
+const handleRouting = async () => {
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+    
+    // Captura o status da URL agora
+    const params = new URLSearchParams(window.location.search);
+    const currentMpStatus = params.get('status') || params.get('collection_status');
+
+    // Se detectar sucesso na URL, trava no sessionStorage imediatamente
+    if (currentMpStatus === 'approved' || currentMpStatus === 'success') {
+        sessionStorage.setItem('mp_success_flag', 'true');
+    }
+
+    // A decisão final de "Pagou" olha para a URL ou para a trava da sessão
+    const hasPaid = currentMpStatus === 'approved' || 
+                    sessionStorage.getItem('mp_success_flag') === 'true';
+
+    hideAllSections();
+    const activeSections = getSections();
+
+    // --- IMPORTANTE: SEMPRE APLICAR O FUNDO, EXCETO NO LOGIN ---
+    if (!path.includes('/login') && hash !== '#login') {
+        document.body.classList.add('bg-reiki');
+    }
+
+    console.log("[Router] Verificando aprovação:", hasPaid);
+
+    if (hasPaid) {
+        // Busca o evento salvo no localStorage
+        const raw = localStorage.getItem('selectedSchedule');
+        const savedEvent = JSON.parse(raw || '{}');
+
+        if (savedEvent.schedule_id || savedEvent.id) {
+            // 1. ALIMENTA AS GLOBAIS (Evita erro de ID perdido na gravação)
+            (window as any).isPrePaid = true;
+            (window as any).selectedEventId = savedEvent.schedule_id || savedEvent.id;
+            (window as any).selectedSchedule = savedEvent;
+
+            // 2. LIMPA A TRAVA (Para não abrir em loop)
+            sessionStorage.removeItem('mp_success_flag');
+
+            // 3. ABRE O FORMULÁRIO
+            if (typeof (window as any).showRegistrationForm === 'function') {
+                (window as any).showRegistrationForm(savedEvent);
+                
+                // 4. LIMPA A URL (Deixa limpa para o usuário)
+                const cleanUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+                return; // FINALIZA AQUI PARA O FORM FICAR ABERTO
+            }
+        } else {
+            console.error("ERRO: LocalStorage vazio.");
+            window.location.hash = '#step-selection';
+        }
+    }
+
+    // --- RESTANTE DO ROTEAMENTO (ADMIN / AGENDA) ---
+    const isAdmin = hash === '#admin' || path.includes('/login') || path.includes('/admin');
+
+    if (isAdmin) {
+        document.body.classList.remove('bg-reiki'); // Remove o fundo no Admin se preferir
+        if (localStorage.getItem('admin_full_name')) {
+            renderAdminDashboard();
+        } else if (activeSections.login) {
+            activeSections.login.classList.remove('hidden');
+        }
+    } else {
+        if (activeSections.selection) {
+            activeSections.selection.classList.remove('hidden');
+            // Só carrega a agenda se NÃO estivermos no fluxo de sucesso do formulário
+            if (!hasPaid) loadEvents(); 
+        }
+    }
+    injectVersion();
+};
+
 // --- INICIALIZAÇÃO ---
 window.addEventListener('popstate', handleRouting);
-handleRouting();
+
+if (document.readyState === 'complete') {
+    handleRouting();
+} else {
+    window.addEventListener('load', handleRouting);
+}
