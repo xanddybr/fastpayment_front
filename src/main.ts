@@ -12,7 +12,7 @@ if (mpStatus === 'approved' || mpStatus === 'success') {
 // --- CONFIGURAÇÃO HÍBRIDA DA API ---
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:8080' 
-    : 'https://misturadeluz.com/agenda/api/public';
+    : 'https://beta.misturadeluz.com/api/public';
 
 const APP_VERSION = "1.0.0beta";
 

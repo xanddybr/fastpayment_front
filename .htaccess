@@ -1,10 +1,11 @@
 RewriteEngine On
-RewriteBase /agenda/
+# Se o seu site beta abre direto em beta.misturadeluz.com, use /
+# Se abrir em beta.misturadeluz.com/agenda, mantenha /agenda/
+RewriteBase / 
 
-# 1. Se o arquivo ou pasta existir fisicamente (como imagens, CSS, JS), abra normal
+# 1. Não aplique as regras se o arquivo existir (CSS, JS, Imagens)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
-# 2. Caso contrário, mande TUDO para o index.html
-# É aqui que o roteamento do seu Vite (ou JavaScript puro) assume o controle
-RewriteRule . index.html [L]
+# 2. Manda para o index.html da pasta atual
+RewriteRule ^ index.html [L]
