@@ -197,6 +197,7 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
                 `;
             }).join('');
         } catch (e) { 
+            console.error("ERRO REAL DETECTADO:", e); // <--- Adicione isso aqui!
             container.innerHTML = '<p class="text-center col-span-full text-red-500">Erro ao carregar agenda.</p>'; 
         }
 };
