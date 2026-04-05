@@ -1,6 +1,6 @@
 RewriteEngine On
 # Se o seu site beta abre direto em beta.misturadeluz.com, use /
-# Se abrir em beta.misturadeluz.com/agenda, mantenha /agenda/
+# Se abrir em beta.misturadeluz.com/beta, mantenha /beta/
 RewriteBase / 
 
 # 1. Não aplique as regras se o arquivo existir (CSS, JS, Imagens)

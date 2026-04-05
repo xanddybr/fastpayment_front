@@ -380,7 +380,7 @@ const setupRegistrationSubmit = () => {
             religion_mention: data.religion_mention,
             course_reason: data.course_reason,
             obs_motived: data.obs_motived,
-            expectations: "Inscrição via Formulário SPA"
+            expectations: data.expectations
         };
 
         // MUDANÇA 2: Lógica de Decisão do Endpoint (Direct vs Normal)
@@ -553,25 +553,14 @@ const proceedToCheckout = async () => {
     if (!modal) return;
 
     const conteudoFicha = `
-        <div class="space-y-6 animate-in fade-in duration-300">
-            <div class="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-inner">
-                <p class="text-[9px] font-black text-fuchsia-400 uppercase tracking-[0.2em] mb-3">Dados do Curso</p>
-                <h4 class="text-xl font-black mb-1">${ficha.event_name}</h4>
-                <p class="text-xs font-bold text-slate-400 uppercase mb-4">${ficha.type_name} • ${ficha.unit_name}</p>
-                <div class="flex items-center gap-2 text-xs text-slate-300">
-                    <span>📅 ${new Date(ficha.scheduled_at).toLocaleDateString('pt-BR')}</span>
-                    <span>⏰ ${new Date(ficha.scheduled_at).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}h</span>
-                </div>
-            </div>
-
             <div class="grid grid-cols-2 gap-4">
                 <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                     <b class="text-[9px] text-slate-400 uppercase block mb-1">Telefone</b>
                     <span class="text-sm font-bold">${ficha.phone || '-'}</span>
                 </div>
                 <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <b class="text-[9px] text-slate-400 uppercase block mb-1">Profissão</b>
-                    <span class="text-sm font-bold">${ficha.activity_professional || '-'}</span>
+                    <b class="text-[9px] text-slate-400 uppercase block mb-1">Email aluno</b>
+                    <span class="text-sm font-bold">${ficha.email || '-'}</span>
                 </div>
             </div>
 
@@ -622,111 +611,112 @@ window.onclick = (event) => {
     if (event.target === modalAnamnese) modalAnamnese?.classList.add('hidden');
 };
 
-const loadInscriptionsData = async () => {
-    const accordion = document.querySelector('#inscriptionsAccordion');
-    if (!accordion) return;
+                const loadInscriptionsData = async () => {
+                    const accordion = document.querySelector('#inscriptionsAccordion');
+                    if (!accordion) return;
 
-    try {
-        const res = await safeFetch(`${API_BASE_URL}/subscribers`, { credentials: 'include' });
-        const rawData = await res.json();
-        inscriptionsCache = rawData;
+                    try {
+                        const res = await safeFetch(`${API_BASE_URL}/subscribers`, { credentials: 'include' });
+                        const rawData = await res.json();
+                        inscriptionsCache = rawData;
 
-        if (!rawData || rawData.length === 0) {
-            accordion.innerHTML = '<p class="text-center py-10">Nenhum registro encontrado.</p>';
-            return;
-        }
+                        if (!rawData || rawData.length === 0) {
+                            accordion.innerHTML = '<p class="text-center py-10">Nenhum registro encontrado.</p>';
+                            return;
+                        }
 
-        const grouped = rawData.reduce((acc: any, item: any) => {
-            if (!acc[item.person_id]) {
-                acc[item.person_id] = {
-                    name: item.full_name,
-                    email: item.email,
-                    phone: item.phone,
-                    details: {
-                        profession: item.activity_professional,
-                        city: item.city,
-                        neighborhood: item.neighborhood
-                    },
-                    events: []
-                };
-            }
-            acc[item.person_id].events.push(item);
-            return acc;
-        }, {});
+                        const grouped = rawData.reduce((acc: any, item: any) => {
+                            if (!acc[item.person_id]) {
+                                acc[item.person_id] = {
+                                    name: item.full_name,
+                                    email: item.email,
+                                    phone: item.phone,
+                                    details: {
+                                        profession: item.activity_professional,
+                                        city: item.city,
+                                        neighborhood: item.neighborhood
+                                    },
+                                    events: []
+                                };
+                            }
+                            acc[item.person_id].events.push(item);
+                            return acc;
+                        }, {});
 
-        accordion.innerHTML = Object.keys(grouped).map((personId, index) => {
-            const person = grouped[personId];
-            return `
-            <div class="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm mb-4">
-                <button onclick="toggleAccordion(${index})" class="w-full p-8 flex items-center justify-between hover:bg-slate-50 transition-all">
-                    <div class="flex items-center gap-6">
-                        <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black text-2xl">
-                            ${person.name.charAt(0)}
-                        </div>
-                        <div class="text-left">
-                            <h3 class="text-xl font-black text-slate-900">${person.name}</h3>
-                            <p class="text-sm text-slate-500 font-medium">${person.email} • ${person.phone}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-6">
-                        <span class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest">
-                            ${person.events.length} EVENTO(S)
-                        </span>
-                        <span id="icon-${index}" class="text-slate-400 text-xl transition-transform">▼</span>
-                    </div>
-                </button>
-                <div id="content-${index}" class="hidden border-t border-slate-100 bg-slate-50/40 p-8">
-                    <div class="mb-8 p-6 bg-white rounded-3xl border border-slate-200 flex justify-between items-center shadow-sm">
-                        <div class="text-sm"><b class="text-slate-400 uppercase text-[10px] block mb-1">Profissão</b> <span class="text-lg font-bold text-slate-700">${person.details.profession || '-'}</span></div>
-                        <div class="text-sm text-right"><b class="text-slate-400 uppercase text-[10px] block mb-1">Localização</b> <span class="text-lg font-bold text-slate-700">${person.details.neighborhood}, ${person.details.city}</span></div>
-                    </div>
-                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Histórico de Inscrições</h4>
-                    <div class="space-y-6">
-                        ${person.events.map((ev: any) => {
-                            const statusColor = ev.payment_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                        accordion.innerHTML = Object.keys(grouped).map((personId, index) => {
+                            const person = grouped[personId];
                             return `
-                            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-md relative group">
-                                <div class="absolute top-8 right-8 ${statusColor} px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter">
-                                    ${ev.payment_status || 'Pendente'}
-                                </div>
-                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                                    <div>
-                                        <div class="mb-4">
-                                            <span class="text-xs font-black text-blue-500 uppercase tracking-widest">Inscrição #${ev.subscribed_id}</span>
-                                            <h5 class="text-2xl font-black text-slate-900 mt-1">${ev.event_name || 'Evento não encontrado'}</h5>
-                                            <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
+                            <div class="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm mb-4">
+                                <button onclick="toggleAccordion(${index})" class="w-full p-8 flex items-center justify-between hover:bg-slate-50 transition-all">
+                                    <div class="flex items-center gap-6">
+                                        <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black text-2xl">
+                                            ${person.name.charAt(0)}
                                         </div>
-                                        <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${new Date(ev.data_inscricao).toLocaleDateString()+""}</div>
-                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Valor</b> <span class="font-black text-slate-900">R$ ${ev.valor_pago || '0,00'}</span></div>
-                                            <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b> <span class="truncate block">${ev.payer_email || 'N/A'}</span></div>
+                                        <div class="text-left">
+                                            <h3 class="text-xl font-black text-slate-900">${person.name}</h3>
+                                            <p class="text-sm text-slate-500 font-medium">${person.email} • ${person.phone}</p>
                                         </div>
                                     </div>
-                                    <div class="bg-fuchsia-50/30 p-6 rounded-[2rem] border border-fuchsia-100 flex flex-col justify-between">
-                                        <div>
-                                            <p class="text-[10px] font-black text-fuchsia-600 uppercase mb-3 tracking-widest">Anamnese do Evento</p>
-                                            <p class="text-base text-slate-600 italic leading-relaxed">
-                                                "${ev.course_reason ? ev.course_reason.substring(0, 120) + '...' : 'Ficha não preenchida.'}"
-                                            </p>
-                                        </div>
-                                      <button onclick="openFullAnamnesis(${ev.subscribed_id})" 
-                                            class="mt-4 flex items-center gap-2 text-sm font-black text-fuchsia-600 hover:text-fuchsia-800 transition-colors uppercase tracking-widest">
-                                        Ver ficha completa ➜
-                                    </button>
+                                    <div class="flex items-center gap-6">
+                                        <span class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest">
+                                            ${person.events.length} EVENTO(S)
+                                        </span>
+                                        <span id="icon-${index}" class="text-slate-400 text-xl transition-transform">▼</span>
+                                    </div>
+                                </button>
+                                <div id="content-${index}" class="hidden border-t border-slate-100 bg-slate-50/40 p-8">
+                                    <div class="mb-8 p-6 bg-white rounded-3xl border border-slate-200 flex justify-between items-center shadow-sm">
+                                        <div class="text-sm"><b class="text-slate-400 uppercase text-[10px] block mb-1">Profissão</b> <span class="text-lg font-bold text-slate-700">${person.details.profession || '-'}</span></div>
+                                        <div class="text-sm text-right"><b class="text-slate-400 uppercase text-[10px] block mb-1">Localização</b> <span class="text-lg font-bold text-slate-700">${person.details.neighborhood}, ${person.details.city}</span></div>
+                                    </div>
+                                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Histórico de Inscrições</h4>
+                                    <div class="space-y-6">
+                                        ${person.events.map((ev: any) => {
+                                            const statusColor = ev.payment_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                                            let valor:string = 'PAGAMENTO CONFIRMADO';
+                                            return `
+                                            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-md relative group">
+                                                <div class="absolute top-8 right-8 ${statusColor} px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter">
+                                                    ${valor || 'Pendente'}
+                                                </div>
+                                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                                    <div>
+                                                        <div class="mb-4">
+                                                            <span class="text-xs font-black text-blue-500 uppercase tracking-widest">Inscrição #${ev.subscribed_id}</span>
+                                                            <h5 class="text-2xl font-black text-slate-900 mt-1">${ev.event_name || 'Evento não encontrado'}</h5>
+                                                            <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
+                                                        </div>
+                                                        <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${new Date(ev.data_inscricao).toLocaleDateString()+""}</div>
+                                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Valor</b> <span class="font-black text-slate-900">R$ ${ev.valor_evento}</span></div>
+                                                            <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b> <span class="truncate block">${ev.payer_email || 'N/A'}</span></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="bg-fuchsia-50/30 p-6 rounded-[2rem] border border-fuchsia-100 flex flex-col justify-between">
+                                                        <div>
+                                                            <p class="text-[10px] font-black text-fuchsia-600 uppercase mb-3 tracking-widest">Chegou por intermédio de:</p>
+                                                            <p class="text-base text-slate-600 italic leading-relaxed">
+                                                                "${ev.course_reason ? ev.course_reason.substring(0, 120) + '...' : 'Ficha não preenchida.'}"
+                                                            </p>
+                                                        </div>
+                                                    <button onclick="openFullAnamnesis(${ev.subscribed_id})" 
+                                                            class="mt-4 flex items-center gap-2 text-sm font-black text-fuchsia-600 hover:text-fuchsia-800 transition-colors uppercase tracking-widest">
+                                                        Ver ficha de Anaminese ➜
+                                                    </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            `;
+                                        }).join('')}
                                     </div>
                                 </div>
                             </div>
                             `;
-                        }).join('')}
-                    </div>
-                </div>
-            </div>
-            `;
-        }).join('');
-    } catch (e) {
-        accordion.innerHTML = '<p class="text-center text-red-500">Erro ao renderizar dados.</p>';
-    }
-};
+                        }).join('');
+                    } catch (e) {
+                        accordion.innerHTML = '<p class="text-center text-red-500">Erro ao renderizar dados.</p>';
+                    }
+                };
 
 (window as any).toggleAccordion = (index: number) => {
     const content = document.getElementById(`content-${index}`);
@@ -751,7 +741,7 @@ const renderAdminDashboard = async () => {
         header.innerHTML = `
             <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
                 <nav class="flex items-center gap-8 h-full">
-                    <span class="font-black text-slate-900 text-xl tracking-tighter mr-4"><span class="text-slate-400">fast</span>Payment <span class="app-version text-[13px] text-gray-400"></span></span>
+                    <span class="font-black text-slate-900 text-xl tracking-tighter mr-4"><span class="text-slate-400">fast</span>Payment</span></span>
                     <button onclick="changeAdminTab('inicio')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Início</button>
                     <button onclick="changeAdminTab('agenda')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Agenda</button>
                     <button onclick="changeAdminTab('inscricoes')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Inscrições</button>
@@ -809,7 +799,7 @@ const renderAdminDashboard = async () => {
                     <h1 class="text-4xl font-black text-slate-900 mb-2">Bem-vindo, ${currentName}!</h1>
                     <p class="text-slate-500 max-w-md">Selecione uma opção no menu superior para começar a gerenciar sua agenda.</p> 
                     <div class="mt-4 text-center">
-                        <span class="app-version text-[10px] text-gray-400"></span>
+                        <span class="app-version text-[15px] text-gray-400"></span>
                     </div>
                 </div>
             `;
@@ -866,7 +856,7 @@ const renderAdminDashboard = async () => {
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-50 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
                         <tr>
-                            <th class="p-4">Dia</th>
+                            <th class="p-4 text-slate-400 font-bold uppercas text-center">Dia</th>
                             <th class="p-4 text-center">Data</th>
                             <th class="p-4">Evento</th>
                             <th class="p-4">Tipo</th>
@@ -889,7 +879,7 @@ const renderAdminDashboard = async () => {
         case 'inscricoes':
             container.innerHTML = `
                 <div class="col-span-full space-y-6">
-                    <h2 class="text-2xl font-black text-slate-900 mb-8">Gestão de Alunos e Inscrições</h2>
+                    <h2 class="text-2xl font-black text-slate-900 mb-8 py-6">Gestão de Alunos e Inscrições</h2>
                     <div id="inscriptionsAccordion" class="space-y-4">
                         <p class="text-center py-10 text-slate-400">Organizando registros...</p>
                     </div>
@@ -1000,14 +990,32 @@ const loadAdminTableData = async () => {
 
             return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 text-slate-700">
-                    <td class="p-4  text-slate-900">${getDayName(item.scheduled_at)}</td>
-                    <td class="p-4  text-slate-900">${dataInicio.toLocaleDateString('pt-BR')} & ${horaInicio} - ${horaFim}</td>
-                    <td class="p-4  text-slate-900">${item.event_name}</td>
-                    <td class="p-4  text-slate-900">${item.type_name || '-'}</td>
-                    <td class="p-4  text-slate-900">R$ ${item.event_price}</td>
-                    <td class="p-4  text-slate-900">${item.unit_name}</td>
+                    <td class="p-4  text-slate-900">
+                    <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
+                            ${getDayName(item.scheduled_at)}
+                    </span></td>
+                    <td class="p-4  text-slate-900">
+                    <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
+                            ${dataInicio.toLocaleDateString('pt-BR')} & ${horaInicio} - ${horaFim}
+                    </span></td>
+                    <td class="p-4  text-slate-900">
+                    <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
+                            R$ ${item.event_name}
+                        </span></td>
+                    <td class="p-4  text-slate-900">
+                    <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
+                            R$ ${item.type_name}
+                        </span></td>
+                    <td class="p-4  text-slate-900">
+                    <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
+                            R$ ${item.event_price}
+                        </span></td></td>
+                    <td class="p-4  text-slate-900">
+                    <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
+                            ${item.unit_name}
+                        </span></td>
                     <td class="p-4  text-center">
-                        <span class="px-3 py-1 rounded-full font-black text-[15px] uppercase ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
+                        <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">
                             ${item.vacancies}
                         </span>
                     </td>
@@ -1134,7 +1142,7 @@ injectVersion();
 (window as any).makeLogout = async () => {
     try { await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' }); } catch (e) {}
     localStorage.removeItem('admin_full_name');
-    window.location.href = '/agenda/login';
+    window.location.href = '/beta/login';
 };
 
 (window as any).makeLogin = async () => {

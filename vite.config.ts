@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   // O 'base' é o segredo. Ele diz ao Vite: 
-  // "Adicione /agenda/ na frente de todos os caminhos de arquivos"
+  // 
   base: '/beta/', 
   
   server: {
