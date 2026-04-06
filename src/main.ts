@@ -575,7 +575,7 @@ const proceedToCheckout = async () => {
                     ${ficha.first_time == 1 ? '✅' : '❌'} <span class="text-slate-600">Primeira Vez</span>
                 </div>
                 <div class="text-sm font-medium">
-                    <span class="text-slate-400">Religião:</span> ${ficha.religion == 1 ? (ficha.religion_mention || 'Sim') : 'Não'}
+                    <span class="text-slate-400">Religião:</span> ${ficha.religion == 1 ? (ficha.religion_mention) : 'Não informado'}
                 </div>
             </div>
 
@@ -672,22 +672,34 @@ window.onclick = (event) => {
                                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Histórico de Inscrições</h4>
                                     <div class="space-y-6">
                                         ${person.events.map((ev: any) => {
-                                            const statusColor = ev.payment_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
-                                            let valor:string = 'PAGAMENTO CONFIRMADO';
+                                            const dataFormater = ev.data_inscricao;
+                                            const dataObjet = new Date(dataFormater.replace(/-/g, '/'));
+
+                                            const dataFormatada = dataObjet.toLocaleString('pt-BR', {
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                                second: '2-digit'
+                                            });
+
+                                            const statusColorPayment = ev.payment_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                                            const statusColorSubscribe = ev.enrollment_status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
                                             return `
                                             <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-md relative group">
-                                                <div class="absolute top-8 right-8 ${statusColor} px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter">
-                                                    ${valor || 'Pendente'}
+                                                <div class="absolute top-8 right-8 ${statusColorPayment} px-4 py-1.5 rounded-full text-[13px] font-black uppercase tracking-tighter">
+                                                    ${ev.payment_status === 'approved' ? 'Pagamento: Confirmado' : 'Pagamento: Pendente'}
                                                 </div>
                                                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                                                     <div>
                                                         <div class="mb-4">
-                                                            <span class="text-xs font-black text-blue-500 uppercase tracking-widest">Inscrição #${ev.subscribed_id}</span>
+                                                            <span class="text-xs font-black uppercase tracking-widest ${statusColorSubscribe}">Inscrição ${ev.enrollment_status === 'confirmed' ? 'Realizada' : 'Pendente'}</span>
                                                             <h5 class="text-2xl font-black text-slate-900 mt-1">${ev.event_name || 'Evento não encontrado'}</h5>
                                                             <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
                                                         </div>
                                                         <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${new Date(ev.data_inscricao).toLocaleDateString()+""}</div>
+                                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${dataFormatada}</div>
                                                             <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Valor</b> <span class="font-black text-slate-900">R$ ${ev.valor_evento}</span></div>
                                                             <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b> <span class="truncate block">${ev.payer_email || 'N/A'}</span></div>
                                                         </div>
