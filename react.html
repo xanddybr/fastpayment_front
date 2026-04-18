@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Aula de React - Senai</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        function BotaoSeguir() {
+            
+            const [seguindo, setSeguindo] = useState(false);
+
+            const lidarComClique = () => {
+                setSeguindo(!seguindo);
+            };
+
+            return (
+                <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'Arial' }}>
+                    <h2>Exemplo de UI/UX com React</h2>
+                    <button 
+                        onClick={lidarComClique}
+                        style={{
+                            padding: '12px 24px',
+                            fontSize: seguindo ? '14px' : '20   px',
+                            fontWeight: 'bold',
+                            borderRadius: '8px',
+                            border: seguindo ? 'double' : 'none',
+                            cursor: 'pointer',
+                            transition: '0.3s',
+                            backgroundColor: seguindo ? '#efefef' : '#000',
+                            color: seguindo ? '#000' : '#fff'
+                        }}
+                    >
+                        {seguindo ? '✓ Seguindo' : 'Seguir'}
+                    </button>
+                    <p>{seguindo ? 'Você agora faz parte da comunidade!' : 'Clique para acompanhar as novidades.'}</p>
+                </div>
+            );
+        }
+
+        // Renderizando na tela
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<BotaoSeguir />);
+
+    </script>
+
+    <div id="root2"></div>
+
+    <script type="text/babel">
+        
+        function Campo() {
+            const [senha, setSenha] = useState("");
+
+                    // Regra de UX: Menos de 6 caracteres é "Fraca"
+                    const forcaSenha = senha.length < 6 ? "Fraca ❌" : "Forte ✅";
+
+                    return (
+                    <div>
+                        <label>Digite sua senha:</label>
+                        <input 
+                        type="password" 
+                        value={senha} 
+                        onChange={(e) => setSenha(e.target.value)} 
+                        />
+                        <p style={{ color: senha.length < 6 ? 'red' : 'green' }}>
+                        Segurança: {forcaSenha}
+                        </p>
+                    </div>
+                    );
+        }
+        const root2 = ReactDOM.createRoot(document.getElementById('root2'));
+        root.render(<Campo />);
+
+    </script>
+
+</body>
+</html>

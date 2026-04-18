@@ -354,7 +354,6 @@ const setupRegistrationSubmit = () => {
     form.onsubmit = async (e) => {
         e.preventDefault();
 
-        // BUSCA HÍBRIDA: Tenta Window, se não tiver, tenta LocalStorage
         const savedEvent = JSON.parse(localStorage.getItem('selectedSchedule') || '{}');
         const scheduleId = (window as any).selectedEventId || savedEvent.schedule_id;
 
@@ -380,16 +379,18 @@ const setupRegistrationSubmit = () => {
             religion_mention: data.religion_mention,
             course_reason: data.course_reason,
             obs_motived: data.obs_motived,
-            expectations: data.expectations
+            expectations: data.expectations,
+            // NOVO: Informamos que o status agora deve ser confirmado
+            update_status: 'confirmed' 
         };
 
-        // MUDANÇA 2: Lógica de Decisão do Endpoint (Direct vs Normal)
-        const endpoint = (window as any).isPrePaid 
-            ? `${API_BASE_URL}/api/register/subscribers` 
-            : `${API_BASE_URL}/api/register/subscribers`;
+        const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "Finalizando Inscrição...";
 
         try {
-            const res = await fetch(endpoint, {
+            // O endpoint agora deve ser inteligente para dar UPDATE se já existir o registro 'pending'
+            const res = await fetch(`${API_BASE_URL}/api/register/subscribers`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -398,14 +399,20 @@ const setupRegistrationSubmit = () => {
             const result = await res.json();
 
             if (res.ok) {
-                alert("Inscrição concluída com sucesso!");
+                alert("Sua vaga está garantida e a inscrição foi confirmada!");
+                // Limpa flags de sucesso para evitar reenvios
+                sessionStorage.removeItem('mp_success_flag');
+                localStorage.removeItem('selectedSchedule');
                 window.location.hash = '#step-selection'; 
                 window.location.reload(); 
             } else {
-                alert("Erro ao salvar inscrição: " + (result.mensagem || "Verifique os dados."));
+                alert("Erro ao confirmar inscrição: " + (result.mensagem || "Verifique os dados."));
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "Finalizar Inscrição";
             }
         } catch (error) {
-            alert("Não foi possível conectar ao servidor.");
+            alert("Erro de conexão com o servidor.");
+            submitBtn.disabled = false;
         }
     };
 };
@@ -443,19 +450,17 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
             });
             const data = await res.json();
 
+            // Quando o pagamento aprova, o back-end já reservou a vaga como 'pending'
             if (data.has_paid) {
-                // PARA DE VIGIAR
                 clearInterval(interval);
-                
-                // ABRE O FORMULÁRIO AUTOMATICAMENTE
-                alert("✅ Pagamento confirmado! Liberando sua ficha de inscrição...");
+                alert("✅ Pagamento confirmado! Sua vaga foi reservada. Por favor, preencha a ficha abaixo para concluir.");
                 (window as any).isPrePaid = true;
                 (window as any).showRegistrationForm((window as any).selectedSchedule);
             }
         } catch (e) {
-            console.error("Monitorando...");
+            console.error("Aguardando aprovação...");
         }
-    }, 5000); // 5 segundos
+    }, 5000);
 };
 
 const proceedToCheckout = async () => {
@@ -581,8 +586,8 @@ const proceedToCheckout = async () => {
 
             <div class="space-y-4">
                 <div class="p-5 bg-fuchsia-50/50 rounded-3xl border border-fuchsia-100">
-                    <b class="text-[9px] text-fuchsia-600 uppercase block mb-2 tracking-widest">Motivação / Obs. Motived</b>
-                    <p class="text-sm text-slate-700 italic leading-relaxed">"${ficha.obs_motived || ficha.course_reason || 'Nenhuma observação detalhada.'}"</p>
+                    <b class="text-[9px] text-fuchsia-600 uppercase block mb-2 tracking-widest">Quem Indicou?</b>
+                    <p class="text-sm text-slate-700 italic leading-relaxed">"${ficha.who_recomended }"</p>
                 </div>
                 <div>
                     <b class="text-[9px] text-slate-400 uppercase block mb-1 ml-1">Expectativas do Aluno</b>
@@ -705,10 +710,10 @@ window.onclick = (event) => {
                                                         </div>
                                                     </div>
                                                     <div class="bg-fuchsia-50/30 p-6 rounded-[2rem] border border-fuchsia-100 flex flex-col justify-between">
-                                                        <div>
-                                                            <p class="text-[10px] font-black text-fuchsia-600 uppercase mb-3 tracking-widest">Chegou por intermédio de:</p>
+                                                        <div><br>
+                                                            <p class="text-[10px] font-black text-fuchsia-600 uppercase mb-3 tracking-widest">Por qual razão você se inscreveu:</p>
                                                             <p class="text-base text-slate-600 italic leading-relaxed">
-                                                                "${ev.course_reason ? ev.course_reason.substring(0, 120) + '...' : 'Ficha não preenchida.'}"
+                                                                "${ev.course_reason ? ev.course_reason : 'Ficha não preenchida.'}"
                                                             </p>
                                                         </div>
                                                     <button onclick="openFullAnamnesis(${ev.subscribed_id})" 
@@ -721,14 +726,14 @@ window.onclick = (event) => {
                                             `;
                                         }).join('')}
                                     </div>
+                                    </div>
                                 </div>
-                            </div>
-                            `;
-                        }).join('');
-                    } catch (e) {
-                        accordion.innerHTML = '<p class="text-center text-red-500">Erro ao renderizar dados.</p>';
-                    }
-                };
+                                `;
+                            }).join('');
+                        } catch (e) {
+                            accordion.innerHTML = '<p class="text-center text-red-500">Erro ao renderizar dados.</p>';
+                        }
+                    };
 
 (window as any).toggleAccordion = (index: number) => {
     const content = document.getElementById(`content-${index}`);
@@ -753,7 +758,7 @@ const renderAdminDashboard = async () => {
         header.innerHTML = `
             <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
                 <nav class="flex items-center gap-8 h-full">
-                    <span class="font-black text-slate-900 text-xl tracking-tighter mr-4"><span class="text-slate-400">fast</span>Payment</span></span>
+                    <span class="font-black text-slate-900 text-xl tracking-tighter mr-4"><span class="text-slate-400">fast</span>Payment<span class="app-version text-[12px] text-gray-400"></span></span></span>
                     <button onclick="changeAdminTab('inicio')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Início</button>
                     <button onclick="changeAdminTab('agenda')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Agenda</button>
                     <button onclick="changeAdminTab('inscricoes')" class="h-full text-sm font-bold transition-all px-1 border-transparent">Inscrições</button>
@@ -811,7 +816,6 @@ const renderAdminDashboard = async () => {
                     <h1 class="text-4xl font-black text-slate-900 mb-2">Bem-vindo, ${currentName}!</h1>
                     <p class="text-slate-500 max-w-md">Selecione uma opção no menu superior para começar a gerenciar sua agenda.</p> 
                     <div class="mt-4 text-center">
-                        <span class="app-version text-[15px] text-gray-400"></span>
                     </div>
                 </div>
             `;
@@ -1008,15 +1012,15 @@ const loadAdminTableData = async () => {
                     </span></td>
                     <td class="p-4  text-slate-900">
                     <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
-                            ${dataInicio.toLocaleDateString('pt-BR')} & ${horaInicio} - ${horaFim}
+                            ${dataInicio.toLocaleDateString('pt-BR')} ${horaInicio} - ${horaFim}
                     </span></td>
                     <td class="p-4  text-slate-900">
                     <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
-                            R$ ${item.event_name}
+                            ${item.event_name}
                         </span></td>
                     <td class="p-4  text-slate-900">
                     <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
-                            R$ ${item.type_name}
+                            ${item.type_name}
                         </span></td>
                     <td class="p-4  text-slate-900">
                     <span class="px-3 py-1 rounded-full text-[15px]  ${item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600'}">
