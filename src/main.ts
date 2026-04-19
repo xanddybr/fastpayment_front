@@ -378,9 +378,7 @@ const setupRegistrationSubmit = () => {
             first_time: data.first_time ? 1 : 0,
             religion_mention: data.religion_mention,
             course_reason: data.course_reason,
-            obs_motived: data.obs_motived,
-            expectations: data.expectations,
-            // NOVO: Informamos que o status agora deve ser confirmado
+            who_recomended: data.who_recomended,
             update_status: 'confirmed' 
         };
 
@@ -586,12 +584,12 @@ const proceedToCheckout = async () => {
 
             <div class="space-y-4">
                 <div class="p-5 bg-fuchsia-50/50 rounded-3xl border border-fuchsia-100">
-                    <b class="text-[9px] text-fuchsia-600 uppercase block mb-2 tracking-widest">Quem Indicou?</b>
-                    <p class="text-sm text-slate-700 italic leading-relaxed">"${ficha.who_recomended }"</p>
+                    <b class="text-[9px] text-fuchsia-600 uppercase block mb-2 tracking-widest">Razão pela qual você se inscreveu:</b>
+                    <p class="text-sm text-slate-700 italic leading-relaxed">"${ficha.course_reason}"</p>
                 </div>
                 <div>
-                    <b class="text-[9px] text-slate-400 uppercase block mb-1 ml-1">Expectativas do Aluno</b>
-                    <p class="text-sm text-slate-600 px-1">${ficha.expectations || '-'}</p>
+                    <b class="text-[9px] text-slate-400 uppercase block mb-1 ml-1">Quem Indicou?</b>
+                    <p class="text-sm text-slate-600 px-1">${ficha.who_recomended }</p>
                 </div>
             </div>
             <button onclick="document.getElementById('modal-anamnese').classList.add('hidden')" 
@@ -676,19 +674,19 @@ window.onclick = (event) => {
                                     </div>
                                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Histórico de Inscrições</h4>
                                     <div class="space-y-6">
-                                        ${person.events.map((ev: any) => {
-                                            const dataFormater = ev.data_inscricao;
-                                            const dataObjet = new Date(dataFormater.replace(/-/g, '/'));
+                                        ${person.events.map((ev: any) => {                                            
 
-                                            const dataFormatada = dataObjet.toLocaleString('pt-BR', {
+                                         function dataFormater(mydate: string): string {
+                                            const dataObjet = new Date(mydate.replace(/-/g,  '/'));
+                                            return dataObjet.toLocaleString('pt-BR', {
                                                 day: '2-digit',
                                                 month: '2-digit',
                                                 year: 'numeric',
                                                 hour: '2-digit',
-                                                minute: '2-digit',
-                                                second: '2-digit'
+                                                minute: '2-digit'
                                             });
-
+                                        }
+                                  
                                             const statusColorPayment = ev.payment_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
                                             const statusColorSubscribe = ev.enrollment_status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
                                             return `
@@ -699,21 +697,23 @@ window.onclick = (event) => {
                                                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                                                     <div>
                                                         <div class="mb-4">
-                                                            <span class="text-xs font-black uppercase tracking-widest ${statusColorSubscribe}">Inscrição ${ev.enrollment_status === 'confirmed' ? 'Realizada' : 'Pendente'}</span>
+                                                            <span class="text-xs font-black uppercase tracking-widest ${statusColorSubscribe}">Inscrição ${ev.enrollment_status === 'confirmed' ? 'Realizada' : 'Pendente'}</span><div class="text-xs"><b class="text-slate-400 uppercase block text-[12px]">${dataFormater(ev.created_at || 'Inscrição ainda não realizada')}</b> </div>
                                                             <h5 class="text-2xl font-black text-slate-900 mt-1">${ev.event_name || 'Evento não encontrado'}</h5>
                                                             <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
                                                         </div>
-                                                        <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data</b> ${dataFormatada}</div>
+                                                        <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100"><br>
+                                                        <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data do evento</b> ${dataFormater(ev.event_date || 'Data não encontrada')}</div>
+                                                            <div class="text-xs"><b class="text-green-400 uppercase block text-[9px]">Data da compra</b> ${dataFormater(ev.updated_at || 'Compra não realizada')}</div>
+                                                            
                                                             <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Valor</b> <span class="font-black text-slate-900">R$ ${ev.valor_evento}</span></div>
                                                             <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b> <span class="truncate block">${ev.payer_email || 'N/A'}</span></div>
                                                         </div>
                                                     </div>
                                                     <div class="bg-fuchsia-50/30 p-6 rounded-[2rem] border border-fuchsia-100 flex flex-col justify-between">
                                                         <div><br>
-                                                            <p class="text-[10px] font-black text-fuchsia-600 uppercase mb-3 tracking-widest">Por qual razão você se inscreveu:</p>
+                                                            <p class="text-[10px] font-black text-fuchsia-600 uppercase mb-3 tracking-widest"></p>
                                                             <p class="text-base text-slate-600 italic leading-relaxed">
-                                                                "${ev.course_reason ? ev.course_reason : 'Ficha não preenchida.'}"
+                                                              
                                                             </p>
                                                         </div>
                                                     <button onclick="openFullAnamnesis(${ev.subscribed_id})" 
