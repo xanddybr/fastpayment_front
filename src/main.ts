@@ -206,53 +206,54 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
 btnSend.addEventListener('click', async () => {
     const email = emailInput.value.trim();
     const emailTeste = "teste_user_2904943887590020914@testeuser.com";
-    
-    // Recupera o ID de forma garantida (Global ou LocalStorage)
-    const scheduleId = parseInt((window as any).selectedEventId) || 
+ 
+    const scheduleId = parseInt((window as any).selectedEventId) ||
                        parseInt(localStorage.getItem('selectedScheduleId') || '0');
-
+ 
     if (!email || !email.includes('@')) {
         alert("Por favor, insira um e-mail válido.");
         return;
     }
-
+ 
     if (!scheduleId || isNaN(scheduleId)) {
         alert("Erro: Selecione um evento na agenda primeiro.");
         return;
     }
-
-    // --- LÓGICA HÍBRIDA (PULA OTP) ---
+ 
     if (email === emailTeste) {
         console.log("🚀 Modo Teste: Indo direto para o Checkout...");
         await proceedToCheckout();
         return;
     }
-
+ 
     btnSend.disabled = true;
     btnSend.innerHTML = "Verificando...";
-
+ 
     try {
         const response = await fetch(`${API_BASE_URL}/api/check-payment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, schedule_id: scheduleId })
+            body: JSON.stringify({ email, schedule_id: scheduleId })
         });
-
+ 
         const result = await response.json();
-
-        if (result.has_paid) {
+ 
+        if (result.has_paid && result.pendencias?.length > 0) {
+            // ✅ CORREÇÃO: salva o payment_id que a API retornou
+            const paymentId = result.pendencias[0].payment_id;
+            localStorage.setItem('mp_payment_id', String(paymentId));
+ 
             if (confirm("Pagamento aprovado encontrado! Ir para a ficha de inscrição?")) {
                 (window as any).isPrePaid = true;
                 (window as any).showRegistrationForm((window as any).selectedSchedule);
             }
         } else {
-            // Segue para geração de OTP normal...
             const otpRes = await fetch(`${API_BASE_URL}/api/auth/generate-code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
             });
-
+ 
             if (otpRes.ok) {
                 alert("Enviamos um código de 6 dígitos para o seu e-mail.");
                 hideAllSections();
@@ -350,59 +351,71 @@ emailInput?.addEventListener('blur', async () => {
 const setupRegistrationSubmit = () => {
     const form = document.querySelector<HTMLFormElement>('#form-complete-registration');
     if (!form) return;
-
+ 
     form.onsubmit = async (e) => {
         e.preventDefault();
-
+ 
         const savedEvent = JSON.parse(localStorage.getItem('selectedSchedule') || '{}');
         const scheduleId = (window as any).selectedEventId || savedEvent.schedule_id;
-
+ 
+        // ✅ CORREÇÃO: lê o payment_id salvo pelo handleRouting ou pelo btnSend
+        const paymentId  = localStorage.getItem('mp_payment_id');
+ 
         if (!scheduleId) {
             alert("Erro: O ID do evento sumiu. Por favor, selecione o curso novamente.");
             return;
         }
-
+ 
+        if (!paymentId) {
+            alert("Erro: ID do pagamento não encontrado. Aguarde alguns segundos e tente novamente.");
+            return;
+        }
+ 
         const formData = new FormData(form);
-        const data = Object.fromEntries(formData);
-
+        const data     = Object.fromEntries(formData);
+ 
         const payload = {
-            student_full_name: data.student_full_name,
-            student_email: data.student_email,
-            student_phone: data.student_phone,
+            // Dados pessoais
+            student_full_name:     data.student_full_name,
+            student_email:         data.student_email,
+            student_phone:         data.student_phone,
             activity_professional: data.activity_professional,
-            neighborhood: data.neighborhood,
-            city: data.city,
-            schedule_id: scheduleId, 
-            is_medium: data.is_medium ? 1 : 0,
-            is_tule_member: data.is_tule_member ? 1 : 0,
-            first_time: data.first_time ? 1 : 0,
-            religion_mention: data.religion_mention,
-            course_reason: data.course_reason,
-            who_recomended: data.who_recomended,
-            update_status: 'confirmed' 
+            neighborhood:          data.neighborhood,
+            city:                  data.city,
+            // Vínculo com o pagamento e agenda
+            schedule_id:           scheduleId,
+            payment_id:            paymentId,       // ✅ incluído
+            // Anamnese
+            is_medium:             data.is_medium        ? 1 : 0,
+            is_tule_member:        data.is_tule_member   ? 1 : 0,
+            first_time:            data.first_time       ? 1 : 0,
+            religion_mention:      data.religion_mention,
+            course_reason:         data.course_reason,
+            who_recomended:        data.who_recomended,
         };
-
+ 
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
         submitBtn.disabled = true;
         submitBtn.innerHTML = "Finalizando Inscrição...";
-
+ 
         try {
-            // O endpoint agora deve ser inteligente para dar UPDATE se já existir o registro 'pending'
             const res = await fetch(`${API_BASE_URL}/api/register/subscribers`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
+ 
             const result = await res.json();
-
+ 
             if (res.ok) {
-                alert("Sua vaga está garantida e a inscrição foi confirmada!");
-                // Limpa flags de sucesso para evitar reenvios
+                // ✅ Limpa os dados de pagamento após inscrição concluída
+                localStorage.removeItem('mp_payment_id');
                 sessionStorage.removeItem('mp_success_flag');
                 localStorage.removeItem('selectedSchedule');
-                window.location.hash = '#step-selection'; 
-                window.location.reload(); 
+ 
+                alert("Sua vaga está garantida e a inscrição foi confirmada!");
+                window.location.hash = '#step-selection';
+                window.location.reload();
             } else {
                 alert("Erro ao confirmar inscrição: " + (result.mensagem || "Verifique os dados."));
                 submitBtn.disabled = false;
@@ -1303,66 +1316,61 @@ injectVersion();
 // --- 1. UNIFICAÇÃO DO RASTREADOR (Substitua a partir daqui) ---
 
 const handleRouting = async () => {
-    const path = window.location.pathname;
-    const hash = window.location.hash;
-    
-    // Captura o status da URL agora
+    const path   = window.location.pathname;
+    const hash   = window.location.hash;
     const params = new URLSearchParams(window.location.search);
+ 
     const currentMpStatus = params.get('status') || params.get('collection_status');
-
-    // Se detectar sucesso na URL, trava no sessionStorage imediatamente
+ 
     if (currentMpStatus === 'approved' || currentMpStatus === 'success') {
         sessionStorage.setItem('mp_success_flag', 'true');
+ 
+        // ✅ CORREÇÃO: captura o payment_id que o MP envia na URL de retorno
+        const urlPaymentId = params.get('payment_id') || params.get('collection_id');
+        if (urlPaymentId) {
+            localStorage.setItem('mp_payment_id', urlPaymentId);
+        }
     }
-
-    // A decisão final de "Pagou" olha para a URL ou para a trava da sessão
-    const hasPaid = currentMpStatus === 'approved' || 
+ 
+    const hasPaid = currentMpStatus === 'approved' ||
                     sessionStorage.getItem('mp_success_flag') === 'true';
-
+ 
     hideAllSections();
     const activeSections = getSections();
-
-    // --- IMPORTANTE: SEMPRE APLICAR O FUNDO, EXCETO NO LOGIN ---
+ 
     if (!path.includes('/login') && hash !== '#login') {
         document.body.classList.add('bg-reiki');
     }
-
+ 
     console.log("[Router] Verificando aprovação:", hasPaid);
-
+ 
     if (hasPaid) {
-        // Busca o evento salvo no localStorage
-        const raw = localStorage.getItem('selectedSchedule');
+        const raw       = localStorage.getItem('selectedSchedule');
         const savedEvent = JSON.parse(raw || '{}');
-
+ 
         if (savedEvent.schedule_id || savedEvent.id) {
-            // 1. ALIMENTA AS GLOBAIS (Evita erro de ID perdido na gravação)
-            (window as any).isPrePaid = true;
+            (window as any).isPrePaid       = true;
             (window as any).selectedEventId = savedEvent.schedule_id || savedEvent.id;
             (window as any).selectedSchedule = savedEvent;
-
-            // 2. LIMPA A TRAVA (Para não abrir em loop)
+ 
             sessionStorage.removeItem('mp_success_flag');
-
-            // 3. ABRE O FORMULÁRIO
+ 
             if (typeof (window as any).showRegistrationForm === 'function') {
                 (window as any).showRegistrationForm(savedEvent);
-                
-                // 4. LIMPA A URL (Deixa limpa para o usuário)
                 const cleanUrl = window.location.origin + window.location.pathname;
                 window.history.replaceState({}, document.title, cleanUrl);
-                return; // FINALIZA AQUI PARA O FORM FICAR ABERTO
+                return;
             }
         } else {
             console.error("ERRO: LocalStorage vazio.");
             window.location.hash = '#step-selection';
         }
     }
-
-    // --- RESTANTE DO ROTEAMENTO (ADMIN / AGENDA) ---
+ 
     const isAdmin = hash === '#admin' || path.includes('/login') || path.includes('/admin');
-
+ 
     if (isAdmin) {
-        document.body.classList.remove('bg-reiki'); // Remove o fundo no Admin se preferir
+        document.body.classList.remove('bg-reiki');
         if (localStorage.getItem('admin_full_name')) {
             renderAdminDashboard();
         } else if (activeSections.login) {
@@ -1371,8 +1379,7 @@ const handleRouting = async () => {
     } else {
         if (activeSections.selection) {
             activeSections.selection.classList.remove('hidden');
-            // Só carrega a agenda se NÃO estivermos no fluxo de sucesso do formulário
-            if (!hasPaid) loadEvents(); 
+            if (!hasPaid) loadEvents();
         }
     }
     injectVersion();
