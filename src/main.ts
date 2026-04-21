@@ -205,7 +205,7 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
 
 btnSend.addEventListener('click', async () => {
     const email = emailInput.value.trim();
-    const emailTeste = "teste_user_2904943887590020914@testeuser.com";
+    const emailTeste = "test_user_4369246050821512868@testuser.com";
  
     const scheduleId = parseInt((window as any).selectedEventId) ||
                        parseInt(localStorage.getItem('selectedScheduleId') || '0');
@@ -267,52 +267,6 @@ btnSend.addEventListener('click', async () => {
         btnSend.innerHTML = "Enviar";
     }
 });
-
-// 1. Vincule o clique ao botão de verificar (ajuste o ID se for outro no seu HTML)
-btnVerify?.addEventListener('click', async () => {
-    const codeInput = document.querySelector<HTMLInputElement>('#otp-code');
-    const emailInput = document.querySelector<HTMLInputElement>('#email');
-    
-    const code = codeInput?.value.trim();
-    const email = emailInput?.value.trim();
-
-    if (!code || code.length < 6) {
-        alert("Por favor, insira o código de 6 dígitos enviado ao seu e-mail.");
-        return;
-    }
-
-    btnVerify.disabled = true;
-    btnVerify.innerHTML = "Validando...";
-
-    try {
-        // 2. Chama a API para conferir se o código está certo
-        const res = await fetch(`${API_BASE_URL}/api/auth/validate-code`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code })
-        });
-
-        if (res.ok) {
-            // --- SUCESSO! E-MAIL VALIDADO ---
-            console.log("Código validado! Abrindo Mercado Pago...");
-            
-            // 3. AGORA SIM, chama a função que abre o pagamento
-            await proceedToCheckout(); 
-            
-        } else {
-            const data = await res.json();
-            alert(data.error || "Código inválido ou expirado.");
-        }
-    } catch (e) {
-        console.error("Erro na validação do código:", e);
-        alert("Erro ao conectar com o servidor para validar o código.");
-    } finally {
-        btnVerify.disabled = false;
-        btnVerify.innerHTML = "Verificar Código e Pagar";
-    }
-});
-
-// Função auxiliar para o Passo 3 do Roteiro
 
 emailInput?.addEventListener('blur', async () => {
     const email = emailInput.value.trim();
@@ -428,9 +382,20 @@ const setupRegistrationSubmit = () => {
     };
 };
 
-(window as any).validateCodeAndPay = async () => {
-    const code = document.querySelector<HTMLInputElement>('#otp-code')?.value.trim();
-    const email = document.querySelector<HTMLInputElement>('#email')?.value.trim();
+// 1. ADICIONA O LISTENER DO BOTÃO OTP — estava faltando
+btnVerify?.addEventListener('click', async () => {
+    const codeInput = document.querySelector<HTMLInputElement>('#otp-code');
+    const emailInput = document.querySelector<HTMLInputElement>('#email');
+    const code  = codeInput?.value.trim();
+    const email = emailInput?.value.trim();
+
+    if (!code || code.length < 6) {
+        alert("Por favor, insira o código de 6 dígitos enviado ao seu e-mail.");
+        return;
+    }
+
+    btnVerify.disabled = true;
+    btnVerify.innerHTML = "Validando...";
 
     try {
         const res = await fetch(`${API_BASE_URL}/api/auth/validate-code`, {
@@ -440,19 +405,30 @@ const setupRegistrationSubmit = () => {
         });
 
         if (res.ok) {
-            // E-MAIL VALIDADO! AGORA SIM VAI PARA O MERCADO PAGO
-            alert("E-mail validado com sucesso! Redirecionando para o pagamento...");
-            proceedToCheckout(); 
+            console.log("Código validado! Abrindo Mercado Pago...");
+            await proceedToCheckout();
         } else {
-            alert("Código inválido ou expirado.");
+            const data = await res.json();
+            alert(data.mensagem || data.error || "Código inválido ou expirado.");
         }
     } catch (e) {
-        alert("Erro na validação do código.");
+        console.error("Erro na validação do código:", e);
+        alert("Erro ao conectar com o servidor.");
+    } finally {
+        btnVerify.disabled = false;
+        btnVerify.innerHTML = "Verificar Código e Pagar";
     }
-};
+});
+
+// 2. validateCodeAndPay — REMOVER (duplicata do listener acima)
+
+// 3. startPaymentMonitoring — com controle do interval
+let paymentMonitorInterval: ReturnType<typeof setInterval> | null = null;
 
 const startPaymentMonitoring = (email: string, scheduleId: number) => {
-    const interval = setInterval(async () => {
+    if (paymentMonitorInterval) clearInterval(paymentMonitorInterval);
+    
+    paymentMonitorInterval = setInterval(async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/check-payment`, {
                 method: 'POST',
@@ -461,10 +437,10 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
             });
             const data = await res.json();
 
-            // Quando o pagamento aprova, o back-end já reservou a vaga como 'pending'
             if (data.has_paid) {
-                clearInterval(interval);
-                alert("✅ Pagamento confirmado! Sua vaga foi reservada. Por favor, preencha a ficha abaixo para concluir.");
+                clearInterval(paymentMonitorInterval!);
+                paymentMonitorInterval = null;
+                alert("✅ Pagamento confirmado! Preencha a ficha abaixo para concluir.");
                 (window as any).isPrePaid = true;
                 (window as any).showRegistrationForm((window as any).selectedSchedule);
             }
@@ -474,37 +450,62 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
     }, 5000);
 };
 
+// 4. proceedToCheckout — adiciona o redirect que estava faltando
 const proceedToCheckout = async () => {
-    // Busca o ID do localStorage se a variável global falhar
     const savedEvent = JSON.parse(localStorage.getItem('selectedSchedule') || '{}');
     const scheduleId = parseInt((window as any).selectedEventId) || savedEvent.schedule_id;
     const email = (document.querySelector<HTMLInputElement>('#email')?.value || '').trim();
 
-    console.log("🚀 Enviando para o Pay:", { email, scheduleId }); // Verifique se o ID aparece no console!
+    console.log("🚀 Enviando para o Pay:", { email, scheduleId });
 
     if (!scheduleId) {
         alert("Erro: O ID do curso não foi encontrado. Selecione o curso novamente.");
         return;
-    }
+    }   
 
     const res = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, schedule_id: scheduleId }) // Forçando o envio dos dois
+        body: JSON.stringify({ email, schedule_id: scheduleId })
     });
 
     const data = await res.json();
 
-    if (res.ok && data.init_point) {
-
-        window.location.href = data.init_point;
-        
-        if (email) startPaymentMonitoring(email, scheduleId);
-    } else {
-        // Exibe o erro real para a gente parar de chutar
-        console.error("Erro MP Detalhado:", data);
-        alert("Erro no Mercado Pago: " + (data.error || "Verifique o console"));
+    // Já inscrito e concluído — pergunta se quer nova compra
+    if (res.status === 409 && data.error === 'ja_inscrito') {
+        if (confirm(data.mensagem)) {
+            const resNew = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, schedule_id: scheduleId, force_new: true })
+            });
+            const dataNew = await resNew.json();
+            if (resNew.ok && dataNew.init_point) {
+                window.location.href = dataNew.init_point;
+            }
+        }
+        return;
     }
+
+    // Pagou mas não concluiu o formulário — redireciona
+    if (res.status === 402 && data.error === 'inscricao_pendente') {
+        alert('Foi identficado um pagamento para esse agendamento e email, você será direcionado para formulario de inscrição, conlua-ô pfvr ok! ');
+        localStorage.setItem('mp_payment_id', String(data.payment_id));
+        (window as any).isPrePaid = true;
+        (window as any).showRegistrationForm((window as any).selectedSchedule);
+        return;
+    }
+
+    // ✅ Caminho feliz — redireciona para o MP
+    if (res.ok && data.init_point) {
+        window.location.href = data.init_point;
+        if (email) startPaymentMonitoring(email, scheduleId);
+        return;
+    }
+
+    // Erro inesperado
+    console.error("Erro MP:", data);
+    alert("Erro no pagamento: " + (data.error || "Tente novamente."));
 };
 
 (window as any).showRegistrationForm = (item: any) => {
@@ -590,8 +591,8 @@ const proceedToCheckout = async () => {
                 <div class="flex items-center gap-2 text-sm font-medium">
                     ${ficha.first_time == 1 ? '✅' : '❌'} <span class="text-slate-600">Primeira Vez</span>
                 </div>
-                <div class="text-sm font-medium">
-                    <span class="text-slate-400">Religião:</span> ${ficha.religion == 1 ? (ficha.religion_mention) : 'Não informado'}
+                <div class="text-sm font-medium">  
+                    <span class="text-slate-400">Religião:</span> ${ficha.religion_mention || 'Não informado'}
                 </div>
             </div>
 
@@ -822,6 +823,17 @@ const renderAdminDashboard = async () => {
     
     switch (tab) {
         case 'inicio':
+
+             fetch(`${API_BASE_URL}/api/cron/transactions-cleanup`, {
+                    credentials: 'include'
+                }).then(res => res.json())
+                .then(data => {
+                    if (data.deleted > 0) {
+                        console.log(`🧹 Sanitização: ${data.deleted} transação(ões) expirada(s) removida(s)`);
+                    }
+                })
+                .catch(err => console.error('Erro no sanitizador:', err));
+
             const currentName = localStorage.getItem('admin_full_name') || 'Administrador';
             container.innerHTML = `
                 <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
@@ -913,7 +925,7 @@ const renderAdminDashboard = async () => {
                         <p class="text-center py-10 text-slate-400">Organizando registros...</p>
                     </div>
                 </div>
-            `;
+            `; 
             loadInscriptionsData();
             break;
     }
@@ -1015,7 +1027,7 @@ const loadAdminTableData = async () => {
             const dataFim = new Date(dataInicio.getTime() + duration * 60000);
             const horaInicio = dataInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const horaFim = dataFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const exibicaoHorario = duration > 0 ? `${horaInicio} - ${horaFim}` : `${horaInicio}`;
+            
 
             return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 text-slate-700">

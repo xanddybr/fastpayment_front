@@ -73,7 +73,7 @@
         </section>
 
         <section id="step-2" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6">
-          <h2 class="text-2xl font-bold text-center text-slate-800">Validar Código</h2>
+          <h2 class="text-2xl font-bold text-center text-slate-500">Insira o codigo recebido em seu email</h2>
           <div class="space-y-4">
             <input type="text" id="otp-code" maxlength="6" placeholder="000000" class="w-full text-center text-4xl font-black border rounded-xl p-3 text-slate-900 tracking-widest focus:ring-2 focus:ring-blue-500 outline-none">
             <button id="btn-verify-otp" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg">
@@ -168,15 +168,26 @@
                         <input type="checkbox" name="first_time" value="1" class="w-5 h-5 accent-violet-600 mr-3">
                         <span class="text-sm font-bold text-slate-700">Minha primeira vez</span>
                     </label>
+        
+                    <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                        <select type="text" name="religion_mention" class="accent-violet-600 mr-3">
+                            <option selected ="não informado">Me identifico como?</option>
+                            <option value="Agnóstico">Agnóstico</option>
+                            <option value="Cético">Cético</option>
+                            <option value="Ateu">Ateu</option>
+                            <option value="Espiritualista">Espiritualista</option>
+                            <option value="Matrizes Africanas">Matrizes Africanas</option>
+                            <option value="Linhas do Oriente">Linhas do Oriente</option>
+                            <option value="Universalista">Universalista</option>
+                            <option value="Protestante">Protestante</option>
+                            <option value="Protestante">Cristianismo</option>
+                            <option value="Judio">Judio</option>
+                        </select>
+                    </label>
                 </div>
 
                 <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Crença? / "Não é obrigatório responder!"</label>
-                    <textarea rows="3" name="religion_mention" placeholder="Fale um pouco sobre você, ou apenas diga se afiniza com alguma crença, ex: espírita, Católico, não possuo..." class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-violet-600 transition-all"></textarea>
-                </div>
-
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Motivo? / "O que te motivou a fazer este curso?"</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">O que motivo fazer este curso? / "O que te motivou a fazer este curso?"</label>
                     <textarea name="course_reason" rows="3" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-violet-600 transition-all" required placeholder="Motivo.."></textarea>
                 </div>
 
