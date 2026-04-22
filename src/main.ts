@@ -221,7 +221,26 @@ btnSend.addEventListener('click', async () => {
     }
  
     if (email === emailTeste) {
-        console.log("🚀 Modo Teste: Indo direto para o Checkout...");
+        console.log("🚀 Modo Teste: Verificando pagamentos pendentes...");
+        
+        // Verifica se já tem pagamento aprovado pendente de inscrição
+        const checkRes = await fetch(`${API_BASE_URL}/api/check-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, schedule_id: scheduleId })
+        });
+        const checkResult = await checkRes.json();
+
+        if (checkResult.has_paid && checkResult.pendencias?.length > 0) {
+            const paymentId = checkResult.pendencias[0].payment_id;
+            localStorage.setItem('mp_payment_id', String(paymentId));
+            alert("Pagamento aprovado encontrado! Redirecionando para a ficha de inscrição.");
+            (window as any).isPrePaid = true;
+            (window as any).showRegistrationForm((window as any).selectedSchedule);
+            return;
+        }
+
+        // Sem pendência — vai direto pro checkout
         await proceedToCheckout();
         return;
     }
@@ -382,6 +401,7 @@ const setupRegistrationSubmit = () => {
     };
 };
 
+
 // 1. ADICIONA O LISTENER DO BOTÃO OTP — estava faltando
 btnVerify?.addEventListener('click', async () => {
     const codeInput = document.querySelector<HTMLInputElement>('#otp-code');
@@ -419,9 +439,7 @@ btnVerify?.addEventListener('click', async () => {
         btnVerify.innerHTML = "Verificar Código e Pagar";
     }
 });
-
-// 2. validateCodeAndPay — REMOVER (duplicata do listener acima)
-
+// 1. ADICIONA O LISTENER DO BOTÃO OTP — estava faltando
 // 3. startPaymentMonitoring — com controle do interval
 let paymentMonitorInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -461,7 +479,7 @@ const proceedToCheckout = async () => {
     if (!scheduleId) {
         alert("Erro: O ID do curso não foi encontrado. Selecione o curso novamente.");
         return;
-    }   
+    }
 
     const res = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
         method: 'POST',
@@ -489,7 +507,6 @@ const proceedToCheckout = async () => {
 
     // Pagou mas não concluiu o formulário — redireciona
     if (res.status === 402 && data.error === 'inscricao_pendente') {
-        alert('Foi identficado um pagamento para esse agendamento e email, você será direcionado para formulario de inscrição, conlua-ô pfvr ok! ');
         localStorage.setItem('mp_payment_id', String(data.payment_id));
         (window as any).isPrePaid = true;
         (window as any).showRegistrationForm((window as any).selectedSchedule);
@@ -643,20 +660,24 @@ window.onclick = (event) => {
                         }
 
                         const grouped = rawData.reduce((acc: any, item: any) => {
-                            if (!acc[item.person_id]) {
-                                acc[item.person_id] = {
-                                    name: item.full_name,
-                                    email: item.email,
-                                    phone: item.phone,
+                            const key = item.person_id
+                                ? `person_${item.person_id}`
+                                : `payment_${item.transacao_gateway}`;
+
+                            if (!acc[key]) {
+                                acc[key] = {
+                                    name:    item.full_name  || item.payer_email || 'Aguardando inscrição',
+                                    email:   item.email      || item.payer_email || '-',
+                                    phone:   item.phone      || '-',
                                     details: {
-                                        profession: item.activity_professional,
-                                        city: item.city,
-                                        neighborhood: item.neighborhood
+                                        profession:   item.activity_professional || '-',
+                                        city:         item.city         || '-',
+                                        neighborhood: item.neighborhood || '-'
                                     },
                                     events: []
                                 };
                             }
-                            acc[item.person_id].events.push(item);
+                            acc[key].events.push(item);
                             return acc;
                         }, {});
 
