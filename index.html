@@ -60,20 +60,29 @@
           </div>
         </section>
 
-        <section id="step-1" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6">
-          <h2 class="text-2xl font-bold text-center text-slate-800">Identificação</h2>
-          <div class="space-y-4">
-            <input type="text" id="user-name" placeholder="Nome Completo" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
-            <input type="tel" id="user-phone" placeholder="WhatsApp (DDD + Número)" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
-            <input type="email" id="email" placeholder="Seu melhor e-mail" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
-            <button id="btn-send-otp" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-blue-600 transition-all shadow-lg">
-              Validar E-mail e Prosseguir →
-            </button>
-          </div>
-        </section>
+    <section id="step-1" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6">
+    
+    <!-- ✅ REQ-001: Back button -->
+
+    <h2 class="text-2xl font-bold text-center text-slate-800">Identificação do Comprador</h2>
+    <p id="step1-summary" class="text-1xl font-bold text-center text-slate-700"></p>
+    <div class="space-y-4">
+        <input type="text" id="user-name" placeholder="Nome Completo" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+        <input type="tel" id="user-phone" placeholder="WhatsApp (DDD + Número)" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+        <input type="email" id="email" placeholder="Seu melhor e-mail" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+        <button id="btn-send-otp" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-blue-600 transition-all shadow-lg">
+            Validar E-mail e Prosseguir →
+        </button>
+    </div>
+    <button onclick="goBackToSchedule()" class="flex items-center gap-2 text-sm text-slate-650 hover:text-slate-700 transition-colors font-medium">
+        ← Voltar para a agenda
+    </button>
+    
+</section>
 
         <section id="step-2" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6">
-          <h2 class="text-2xl font-bold text-center text-slate-500">Insira o codigo recebido em seu email</h2>
+          <h2 class="text-1xl font-bold text-center text-slate-500">Insira o codigo recebido em seu email</h2>
+          <p id="step2-summary" class="text-1xl font-bold text-center text-slate-700"></p>
           <div class="space-y-4">
             <input type="text" id="otp-code" maxlength="6" placeholder="000000" class="w-full text-center text-4xl font-black border rounded-xl p-3 text-slate-900 tracking-widest focus:ring-2 focus:ring-blue-500 outline-none">
             <button id="btn-verify-otp" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg">

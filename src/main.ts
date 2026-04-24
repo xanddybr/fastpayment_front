@@ -90,7 +90,7 @@ const getDayName = (dateString: string) => {
 
 // --- AGENDA PÚBLICA (ATUALIZADA COM VAGAS) ---
 const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
-   
+    
     const isManutencao = false;  // --- 1. CHAVE GERAL (true = esconde agenda / false = mostra agenda) ---
 
     // --- 2. PEGA OS ELEMENTOS ---
@@ -523,6 +523,19 @@ const proceedToCheckout = async () => {
     // Erro inesperado
     console.error("Erro MP:", data);
     alert("Erro no pagamento: " + (data.error || "Tente novamente."));
+};
+
+// REQ-001: Back to public schedule
+(window as any).goBackToSchedule = () => {
+    // Clears selected event data
+    localStorage.removeItem('selectedSchedule');
+    (window as any).selectedEventId = null;
+    (window as any).selectedSchedule = null;
+
+    // Shows the schedule section and reloads events
+    hideAllSections();
+    getSections().selection?.classList.remove('hidden');
+    loadEvents();
 };
 
 (window as any).showRegistrationForm = (item: any) => {
@@ -1189,16 +1202,29 @@ injectVersion();
         return;
     }
 
-    // 1. SALVAMOS O OBJETO COMPLETO (Isso é o que falta para preencher o card!)
     localStorage.setItem('selectedSchedule', JSON.stringify(item));
-    
-    // 2. Setamos as variáveis globais de apoio
-    (window as any).selectedSchedule = item; 
-    (window as any).selectedEventId = item.schedule_id || item.id; 
+    (window as any).selectedSchedule = item;
+    (window as any).selectedEventId  = item.schedule_id || item.id;
 
     hideAllSections();
-    const step1 = document.querySelector<HTMLDivElement>('#step-1');
-    if (step1) step1.classList.remove('hidden');
+    document.querySelector<HTMLDivElement>('#step-1')?.classList.remove('hidden');
+
+    // ✅ REQ-002: Fill AFTER section is visible
+    const dataFormatada = item.scheduled_at?.replace(/-/g, '/');
+    const dataInicio    = dataFormatada ? new Date(dataFormatada) : null;
+    const dateLabel     = dataInicio
+        ? `${dataInicio.toLocaleDateString('pt-BR')} às ${dataInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h`
+        : '';
+    const summary = `${item.event_name} - ${dateLabel} - R$ ${parseFloat(item.event_price).toFixed(2)}`;
+
+    const s1 = document.getElementById('step1-summary');
+    const s2 = document.getElementById('step2-summary');
+
+    console.log("Summary elements:", s1, s2); // ← check if null
+    console.log("Summary text:", summary);
+
+    if (s1) s1.textContent = summary;
+    if (s2) s2.textContent = summary;
 };
 
 (window as any).makeLogout = async () => {
