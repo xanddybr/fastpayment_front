@@ -90,7 +90,7 @@ const getDayName = (dateString: string) => {
 
 // --- AGENDA PÚBLICA (ATUALIZADA COM VAGAS) ---
 const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
-    
+   
     const isManutencao = false;  // --- 1. CHAVE GERAL (true = esconde agenda / false = mostra agenda) ---
 
     // --- 2. PEGA OS ELEMENTOS ---
@@ -102,6 +102,8 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     stepSelection?.classList.toggle('hidden', isManutencao);
     avisoManutencao?.classList.toggle('hidden', !isManutencao);
 
+    await cleanupExpiredCodes()
+    
     // Se estiver em manutenção, para a execução aqui e não faz mais nada
     if (isManutencao) return;
 
@@ -202,77 +204,73 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
         }
 };
 
+const checkPendingPayment = async (email: string, scheduleId: number): Promise<boolean> => {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/check-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, schedule_id: scheduleId })
+        });
+
+        const result = await res.json();
+
+        if (result.has_paid && result.pendencias?.length > 0) {
+            const paymentId = result.pendencias[0].payment_id;
+            localStorage.setItem('mp_payment_id', String(paymentId));
+            alert("Localizado pagamento aprovado vinculado a este email, por favor conclua sua inscrição!");
+            (window as any).isPrePaid = true;
+            (window as any).showRegistrationForm((window as any).selectedSchedule);
+            return true; // ← indica que tinha pendência e já redirecionou
+        }
+
+        return false; // ← sem pendência, fluxo normal
+    } catch (error) {
+        console.error("Erro ao verificar pagamento:", error);
+        return false;
+    }
+};
+
 
 btnSend.addEventListener('click', async () => {
-    const email = emailInput.value.trim();
+    const email      = emailInput.value.trim();
     const emailTeste = "test_user_4369246050821512868@testuser.com";
- 
+
     const scheduleId = parseInt((window as any).selectedEventId) ||
                        parseInt(localStorage.getItem('selectedScheduleId') || '0');
- 
+
     if (!email || !email.includes('@')) {
         alert("Por favor, insira um e-mail válido.");
         return;
     }
- 
+
     if (!scheduleId || isNaN(scheduleId)) {
         alert("Erro: Selecione um evento na agenda primeiro.");
         return;
     }
- 
+
+    // Test email — skip OTP, check pending first
     if (email === emailTeste) {
         console.log("🚀 Modo Teste: Verificando pagamentos pendentes...");
-        
-        // Verifica se já tem pagamento aprovado pendente de inscrição
-        const checkRes = await fetch(`${API_BASE_URL}/api/check-payment`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, schedule_id: scheduleId })
-        });
-        const checkResult = await checkRes.json();
-
-        if (checkResult.has_paid && checkResult.pendencias?.length > 0) {
-            const paymentId = checkResult.pendencias[0].payment_id;
-            localStorage.setItem('mp_payment_id', String(paymentId));
-            alert("Pagamento aprovado encontrado! Redirecionando para a ficha de inscrição.");
-            (window as any).isPrePaid = true;
-            (window as any).showRegistrationForm((window as any).selectedSchedule);
-            return;
-        }
-
-        // Sem pendência — vai direto pro checkout
-        await proceedToCheckout();
+        const hasPending = await checkPendingPayment(email, scheduleId);
+        if (!hasPending) await proceedToCheckout();
         return;
     }
- 
+
     btnSend.disabled = true;
     btnSend.innerHTML = "Verificando...";
- 
+
     try {
-        const response = await fetch(`${API_BASE_URL}/api/check-payment`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, schedule_id: scheduleId })
-        });
- 
-        const result = await response.json();
- 
-        if (result.has_paid && result.pendencias?.length > 0) {
-            // ✅ CORREÇÃO: salva o payment_id que a API retornou
-            const paymentId = result.pendencias[0].payment_id;
-            localStorage.setItem('mp_payment_id', String(paymentId));
- 
-            if (confirm("Pagamento aprovado encontrado! Ir para a ficha de inscrição?")) {
-                (window as any).isPrePaid = true;
-                (window as any).showRegistrationForm((window as any).selectedSchedule);
-            }
-        } else {
+        // ✅ REQ-006: using checkPendingPayment
+        const hasPending = await checkPendingPayment(email, scheduleId);
+
+        if (!hasPending) {
+            // No pending payment — proceed to OTP
             const otpRes = await fetch(`${API_BASE_URL}/api/auth/generate-code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
             });
- 
+
             if (otpRes.ok) {
                 alert("Enviamos um código de 6 dígitos para o seu e-mail.");
                 hideAllSections();
@@ -470,6 +468,7 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
 
 // 4. proceedToCheckout — adiciona o redirect que estava faltando
 const proceedToCheckout = async () => {
+
     const savedEvent = JSON.parse(localStorage.getItem('selectedSchedule') || '{}');
     const scheduleId = parseInt((window as any).selectedEventId) || savedEvent.schedule_id;
     const email = (document.querySelector<HTMLInputElement>('#email')?.value || '').trim();
@@ -857,17 +856,8 @@ const renderAdminDashboard = async () => {
     
     switch (tab) {
         case 'inicio':
-
-             fetch(`${API_BASE_URL}/api/cron/transactions-cleanup`, {
-                    credentials: 'include'
-                }).then(res => res.json())
-                .then(data => {
-                    if (data.deleted > 0) {
-                        console.log(`🧹 Sanitização: ${data.deleted} transação(ões) expirada(s) removida(s)`);
-                    }
-                })
-                .catch(err => console.error('Erro no sanitizador:', err));
-
+            cleanupExpiredCodes()
+            
             const currentName = localStorage.getItem('admin_full_name') || 'Administrador';
             container.innerHTML = `
                 <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
@@ -1045,9 +1035,40 @@ const renderSuccessPage = () => {
     }
 };
 
+// REQ-003: Cleanup pending transactions
+        const cleanupPendingTransactions = async (): Promise<void> => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/cron/transactions-cleanup`, {
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.deleted > 0) {
+                    console.log(`🧹 Cleanup: ${data.deleted} expired transaction(s) removed`);
+                }
+            } catch (err) {
+                console.error('Cleanup error:', err);
+            }
+        };
+
+        // REQ-004: Cleanup validated/expired OTP codes
+        const cleanupExpiredCodes = async (): Promise<void> => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/cron/codes-cleanup`, {
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.deleted > 0) {
+                    console.log(`🧹 Codes cleanup: ${data.deleted} expired code(s) removed`);
+                }
+            } catch (err) {
+                console.error('Codes cleanup error:', err);
+            }
+        };
+
 // --- CARREGAMENTO DE DADOS (ADMIN) ---
 
 const loadAdminTableData = async () => {
+
     const tbody = document.querySelector('#adminTableBody');
     if (!tbody) return;
 
@@ -1137,6 +1158,7 @@ const setupFormListener = () => {
         };
 
         // MUDANÇA 3: Alerta corrigido para mostrar os dados do objeto
+
 
         const res = await safeFetch(`${API_BASE_URL}/schedules`, {
             method: 'POST',
