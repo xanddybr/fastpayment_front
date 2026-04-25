@@ -21,6 +21,22 @@ let modalOriginalHTML: string = '';
 let selectedEvent = { id: 0, name: ''    };
 let currentTarget: 'events' | 'units' | 'event-types' = 'events';
 
+
+// REQ-004: Cleanup validated/expired OTP codes
+        const cleanupExpiredCodes = async (): Promise<void> => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/cron/codes-cleanup`, {
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (data.deleted > 0) {
+                    console.log(`🧹 Codes cleanup: ${data.deleted} expired code(s) removed`);
+                }
+            } catch (err) {
+                console.error('Codes cleanup error:', err);
+            }
+        };
+
 const getSections = () => ({
     selection: document.querySelector<HTMLDivElement>('#step-selection'),
     auth:      document.querySelector<HTMLDivElement>('#step-1'),
@@ -50,6 +66,8 @@ const safeFetch = async (url: string, options: RequestInit = {}) => {
     } 
     return response;
 };
+
+
 
 const injectVersion = () => {
     document.querySelectorAll('.app-version').forEach(el => {
@@ -102,7 +120,6 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     stepSelection?.classList.toggle('hidden', isManutencao);
     avisoManutencao?.classList.toggle('hidden', !isManutencao);
 
-    await cleanupExpiredCodes()
     
     // Se estiver em manutenção, para a execução aqui e não faz mais nada
     if (isManutencao) return;
@@ -856,7 +873,6 @@ const renderAdminDashboard = async () => {
     
     switch (tab) {
         case 'inicio':
-            cleanupExpiredCodes()
             
             const currentName = localStorage.getItem('admin_full_name') || 'Administrador';
             container.innerHTML = `
@@ -1050,20 +1066,7 @@ const renderSuccessPage = () => {
             }
         };
 
-        // REQ-004: Cleanup validated/expired OTP codes
-        const cleanupExpiredCodes = async (): Promise<void> => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/cron/codes-cleanup`, {
-                    credentials: 'include'
-                });
-                const data = await res.json();
-                if (data.deleted > 0) {
-                    console.log(`🧹 Codes cleanup: ${data.deleted} expired code(s) removed`);
-                }
-            } catch (err) {
-                console.error('Codes cleanup error:', err);
-            }
-        };
+        
 
 // --- CARREGAMENTO DE DADOS (ADMIN) ---
 
