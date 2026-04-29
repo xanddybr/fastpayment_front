@@ -279,7 +279,7 @@ const checkPendingPayment = async (email: string, scheduleId: number): Promise<b
         if (result.has_paid && result.pendencias?.length > 0) {
             const paymentId = result.pendencias[0].payment_id;
             localStorage.setItem('mp_payment_id', String(paymentId));
-            alert("Localizado pagamento aprovado vinculado a este email, por favor conclua sua inscrição!");
+            alert("Foi Identificado um pagamento aprovado que esta vinculado a este email, por favor conclua sua inscrição!");
             (window as any).isPrePaid = true;
             (window as any).showRegistrationForm((window as any).selectedSchedule);
             return true;
@@ -458,10 +458,11 @@ btnSend.addEventListener('click', async () => {
 btnVerify?.addEventListener('click', async () => {
     const codeInput  = document.querySelector<HTMLInputElement>('#otp-code');
     const emailInput = document.querySelector<HTMLInputElement>('#email');
-    const nameInput  = document.querySelector<HTMLInputElement>('#user-name'); // ✅
+    const nameInput  = document.querySelector<HTMLInputElement>('#user-name');
     const code       = codeInput?.value.trim();
     const email      = emailInput?.value.trim();
-    const nome       = nameInput?.value.trim(); // ✅
+    const nome       = nameInput?.value.trim();
+    const phone      = phoneInput.value.trim(); 
 
     if (!code || code.length < 6) { 
         alert("Por favor, insira o código de 6 dígitos enviado ao seu e-mail."); 
@@ -476,7 +477,7 @@ btnVerify?.addEventListener('click', async () => {
         const res = await fetch(`${API_BASE_URL}/api/auth/validate-code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code, nome }), // ✅ nome included
+            body: JSON.stringify({ email, code, nome, phone }), // ✅ nome included
         });
         if (res.ok) {
             console.log("Código validado! Abrindo Mercado Pago...");
@@ -1074,19 +1075,19 @@ async function refreshModalList() {
             </div>
         </div>
         <div class="grid grid-cols-2 gap-x-4 gap-y-3 p-2">
-            <div class="flex items-center gap-2 text-sm font-medium">${ficha.is_medium     == 1 ? '✅' : '❌'} <span class="text-slate-600">Médium</span></div>
-            <div class="flex items-center gap-2 text-sm font-medium">${ficha.is_tule_member == 1 ? '✅' : '❌'} <span class="text-slate-600">Membro TULE</span></div>
-            <div class="flex items-center gap-2 text-sm font-medium">${ficha.first_time    == 1 ? '✅' : '❌'} <span class="text-slate-600">Primeira Vez</span></div>
-            <div class="text-sm font-medium"><span class="text-slate-400">Religião:</span> ${ficha.religion_mention || 'Não informado'}</div>
+            <div class="flex items-center gap-2 text-sm font-medium">${ficha.is_medium     == 1 ? '✅' : '?'} <span class="text-slate-600">Médium</span></div>
+            <div class="flex items-center gap-2 text-sm font-medium">${ficha.is_tule_member == 1 ? '✅' : '?'} <span class="text-slate-600">Membro TULE</span></div>
+            <div class="flex items-center gap-2 text-sm font-medium">${ficha.first_time    == 1 ? '✅' : '?'} <span class="text-slate-600">Primeira Vez</span></div>
+            <div class="text-sm font-medium"><span class="text-slate-400">Religião:</span> ${ficha.religion_mention || '?'}</div>
         </div>
         <div class="space-y-4">
             <div class="p-5 bg-fuchsia-50/50 rounded-3xl border border-fuchsia-100">
                 <b class="text-[9px] text-fuchsia-600 uppercase block mb-2 tracking-widest">Razão pela qual você se inscreveu:</b>
-                <p class="text-sm text-slate-700 italic leading-relaxed">"${ficha.course_reason}"</p>
+                <p class="text-sm text-slate-700 italic leading-relaxed">${ficha.course_reason || ''}</p>
             </div>
             <div>
                 <b class="text-[9px] text-slate-400 uppercase block mb-1 ml-1">Quem Indicou?</b>
-                <p class="text-sm text-slate-600 px-1">${ficha.who_recomended}</p>
+                <p class="text-sm text-slate-600 px-1">${ficha.who_recomended || ''}</p>
             </div>
         </div>
         <button onclick="document.getElementById('modal-anamnese').classList.add('hidden')"
