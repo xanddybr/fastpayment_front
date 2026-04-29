@@ -6,7 +6,7 @@ import './style.css';
 
 const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:8080'
-    : 'https://beta.misturadeluz.com';
+    : 'https://beta.misturadeluz.com/beta';
 
 const APP_VERSION = "1.0.0beta";
 
