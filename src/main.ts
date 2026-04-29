@@ -75,6 +75,22 @@ const cleanupExpiredCodes = async (): Promise<void> => {
 // SECTION 4 — UTILITY FUNCTIONS
 // =============================================================================
 
+// Validation helpers
+const validateEmail = (email: string): boolean => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+};
+
+const validatePhone = (phone: string): boolean => {
+    const digits = phone.replace(/\D/g, '');
+    return digits.length === 10 || digits.length === 11;
+};
+
+const validateFullName = (name: string): boolean => {
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2 && parts.every(p => p.length >= 2);
+};
+
 const safeFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(url, options);
     if (response.status === 401 && !url.includes('/api/auth/')) {
@@ -398,19 +414,27 @@ emailInput?.addEventListener('blur', async () => {
 // Send OTP button
 btnSend.addEventListener('click', async () => {
     const email      = emailInput.value.trim();
-    const nome       = nameInput.value.trim(); // ✅
+    const nome       = nameInput.value.trim();
+    const phone      = phoneInput.value.trim();
     const emailTeste = "test_user_4369246050821512868@testuser.com";
     const scheduleId = parseInt((window as any).selectedEventId) ||
                        parseInt(localStorage.getItem('selectedScheduleId') || '0');
 
-    if (!email || !email.includes('@')) { alert("Por favor, insira um e-mail válido."); return; }
-    if (!scheduleId || isNaN(scheduleId)) { alert("Erro: Selecione um evento na agenda primeiro."); return; }
-
-    // Test email — skip OTP, check pending first
-    if (email === emailTeste) {
-        console.log("🚀 Modo Teste: Verificando pagamentos pendentes...");
-        const hasPending = await checkPendingPayment(email, scheduleId);
-        if (!hasPending) await proceedToCheckout();
+    // ✅ Frontend validations
+    if (!validateFullName(nome)) {
+        alert("Por favor, informe seu nome completo (nome e sobrenome).");
+        return;
+    }
+    if (!validatePhone(phone)) {
+        alert("Por favor, informe um telefone válido (DDD + número).");
+        return;
+    }
+    if (!validateEmail(email)) {
+        alert("Por favor, insira um e-mail válido.");
+        return;
+    }
+    if (!scheduleId || isNaN(scheduleId)) {
+        alert("Erro: Selecione um evento na agenda primeiro.");
         return;
     }
 
@@ -425,7 +449,7 @@ btnSend.addEventListener('click', async () => {
             const otpRes = await fetch(`${API_BASE_URL}/api/auth/generate-code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, email }),
+                body: JSON.stringify({ email, nome, telefone: phone }), // ✅ phone too
             });
             if (otpRes.ok) {
                 alert("Enviamos um código de 6 dígitos para o seu e-mail.");
@@ -445,19 +469,25 @@ btnSend.addEventListener('click', async () => {
 btnVerify?.addEventListener('click', async () => {
     const codeInput  = document.querySelector<HTMLInputElement>('#otp-code');
     const emailInput = document.querySelector<HTMLInputElement>('#email');
+    const nameInput  = document.querySelector<HTMLInputElement>('#user-name'); // ✅
     const code       = codeInput?.value.trim();
     const email      = emailInput?.value.trim();
+    const nome       = nameInput?.value.trim(); // ✅
 
-    if (!code || code.length < 6) { alert("Por favor, insira o código de 6 dígitos enviado ao seu e-mail."); return; }
+    if (!code || code.length < 6) { 
+        alert("Por favor, insira o código de 6 dígitos enviado ao seu e-mail."); 
+        return; 
+    }
 
     btnVerify.disabled  = true;
     btnVerify.innerHTML = "Validando...";
 
     try {
+        console.log("📤 Sending validate-code:", { email, code, nome });
         const res = await fetch(`${API_BASE_URL}/api/auth/validate-code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code }),
+            body: JSON.stringify({ email, code, nome }), // ✅ nome included
         });
         if (res.ok) {
             console.log("Código validado! Abrindo Mercado Pago...");
@@ -499,7 +529,6 @@ const setupRegistrationSubmit = () => {
 
         const payload = {
             student_full_name:     data.student_full_name,
-            student_email:         data.student_email,
             student_phone:         data.student_phone,
             activity_professional: data.activity_professional,
             neighborhood:          data.neighborhood,
@@ -816,7 +845,7 @@ const loadInscriptionsData = async () => {
         inscriptionsCache = rawData;
 
         if (!rawData || rawData.length === 0) {
-            accordion.innerHTML = '<p class="text-center py-10">Nenhum registro encontrado.</p>';
+            accordion.innerHTML = '<p class="text-center py-10">Não há inscrições a serem listadas.</p>';
             return;
         }
 
@@ -883,10 +912,10 @@ const loadInscriptionsData = async () => {
                                             <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
                                         </div>
                                         <div class="grid grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Data do evento</b>${dataFormater(ev.event_date || '')}</div>
-                                            <div class="text-xs"><b class="text-green-400 uppercase block text-[9px]">Data da compra</b>${dataFormater(ev.createdPay || '')}</div>
-                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[9px]">Valor</b><span class="font-black text-slate-900">R$ ${ev.valor_evento}</span></div>
-                                            <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b><span class="truncate block"></span></div>
+                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[15px]">Data do evento</b><span class="font-black text-slate-900 block text-[15px]">${dataFormater(ev.event_date || '')}</span></div>
+                                            <div class="text-xs"><b class="text-green-400 uppercase block text-[15px]">Data da compra</b><span class="font-black text-slate-900 block text-[15px]">${dataFormater(ev.createdPay || '')}</span></div>
+                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[15px]">Valor</b><span class="font-black text-slate-900 block text-[15px]">R$ ${ev.valor_evento}</span></div>
+                                          <!--  <div class="text-xs col-span-2"><b class="text-slate-400 uppercase block text-[9px]">E-mail Pagador</b><span class="truncate block"></span></div> -->
                                         </div>
                                     </div>
                                     <div class="bg-fuchsia-50/30 p-6 rounded-[2rem] border border-fuchsia-100 flex flex-col justify-between">

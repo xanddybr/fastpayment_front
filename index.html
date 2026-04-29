@@ -96,7 +96,7 @@
     <div class="text-center mb-8">
         <span class="bg-green-500/10 text-green-500 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-500/20">Pagamento Identificado</span>
         <h2 class="text-4xl font-black text-slate-500 mt-4">Conclua sua Inscrição</h2>
-        <p class="text-slate-500">Confirme os dados do evento e complete o perfil do aluno.</p>
+        <p class="text-slate-500">Confira os dados do evento, e complete informações do aluno.</p>
     </div>
 
     <form id="form-complete-registration" class="space-y-6">
@@ -125,19 +125,20 @@
                 <h3 class="font-black text-slate-800 uppercase text-sm tracking-widest">Informações do Aluno</h3>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="md:col-span-2">
+               <div class="md:col-span-2">
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nome Completo do Aluno</label>
-                    <input type="text" name="student_full_name" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="Nome de quem fará o curso">
+                    <input type="text" name="student_full_name" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="Nome de quem fará o curso" required>
                 </div>
                 
-                <div>
+               <!-- <div>
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-2">E-mail do Aluno</label>
                     <input type="email" name="student_email" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="email@do-aluno.com">
-                </div>
+                </div> 
+                -->
 
                 <div>
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-2">WhatsApp do Aluno</label>
-                    <input type="tel" name="student_phone" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="(00) 00000-0000">
+                    <input type="tel" name="student_phone" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="(00) 00000-0000" required>
                 </div>
 
                 <div>
@@ -180,16 +181,16 @@
         
                     <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
                         <select type="text" name="religion_mention" class="accent-violet-600 mr-3">
-                            <option selected ="não informado">Me identifico como?</option>
+                            <option selected ="não informado">Como me identifico como ? </option>
                             <option value="Agnóstico">Agnóstico</option>
                             <option value="Cético">Cético</option>
                             <option value="Ateu">Ateu</option>
                             <option value="Espiritualista">Espiritualista</option>
-                            <option value="Matrizes Africanas">Matrizes Africanas</option>
-                            <option value="Linhas do Oriente">Linhas do Oriente</option>
+                            <option value="Matrizes Africanas">Cultuo ritos de matrizes Africanas</option>
+                            <option value="Linhas do Oriente">Cultuo Linhas do Oriente</option>
                             <option value="Universalista">Universalista</option>
                             <option value="Protestante">Protestante</option>
-                            <option value="Protestante">Cristianismo</option>
+                            <option value="Protestante">Seguidor do Cristianismo</option>
                             <option value="Judio">Judio</option>
                         </select>
                     </label>
