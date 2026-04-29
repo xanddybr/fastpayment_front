@@ -21,24 +21,7 @@ let paymentMonitorInterval: ReturnType<typeof setInterval> | null = null;
 // SECTION 2 — PAYMENT DETECTION ON PAGE LOAD (MP redirect trap)
 // =============================================================================
 
-const urlParams    = new URLSearchParams(window.location.search);
-const mpStatus     = urlParams.get('status') || urlParams.get('collection_status');
-
-if (mpStatus === 'approved' || mpStatus === 'success') {
-    sessionStorage.setItem('mp_success_flag', 'true');
-    console.log("🎯 [RASTREADOR] Pagamento detectado e travado na sessão!");
-}
-
-const checkIncomingPayment = () => {
-    const params = new URLSearchParams(window.location.search);
-    const status = params.get('status') || params.get('collection_status');
-    if (status === 'approved' || status === 'success') {
-        sessionStorage.setItem('mp_success_flag', 'true');
-        console.log("🎯 [Scanner] Pagamento capturado via redirecionamento!");
-    }
-};
-checkIncomingPayment();
-
+                // DELETED
 
 // =============================================================================
 // SECTION 3 — SANITIZERS (cleanup cron functions)
@@ -228,10 +211,23 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
 };
 
 // REQ-001: Back to public schedule
+// REQ-001 + REQ-013: Back to public schedule + clear inputs
 (window as any).goBackToSchedule = () => {
+    // Clear selected event data
     localStorage.removeItem('selectedSchedule');
+    localStorage.removeItem('mp_payment_id');
+    sessionStorage.removeItem('mp_success_flag');
     (window as any).selectedEventId  = null;
     (window as any).selectedSchedule = null;
+    (window as any).isPrePaid        = false;
+
+    // ✅ Clear all input fields
+    if (nameInput)  nameInput.value  = '';
+    if (phoneInput) phoneInput.value = '';
+    if (emailInput) emailInput.value = '';
+    if (otpInput)   otpInput.value   = '';
+
+    // Show schedule and reload events
     hideAllSections();
     getSections().selection?.classList.remove('hidden');
     loadEvents();
@@ -342,21 +338,14 @@ const proceedToCheckout = async () => {
     });
     const data = await res.json();
 
-    // Already subscribed and confirmed — ask if wants new purchase
+    // ✅ REQ-011: Already subscribed and confirmed — block (no second purchase for same event)
     if (res.status === 409 && data.error === 'ja_inscrito') {
-        if (confirm(data.mensagem)) {
-            const resNew  = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, schedule_id: scheduleId, force_new: true }),
-            });
-            const dataNew = await resNew.json();
-            if (resNew.ok && dataNew.init_point) window.location.href = dataNew.init_point;
-        }
+        alert(data.mensagem);
+        (window as any).goBackToSchedule(); // ✅ REQ-013: return to main page
         return;
     }
 
-    // Paid but form not completed — redirect to form
+    // ✅ REQ-010: Paid but form not completed — redirect to form
     if (res.status === 402 && data.error === 'inscricao_pendente') {
         alert(data.mensagem);
         localStorage.setItem('mp_payment_id', String(data.payment_id));
@@ -1168,43 +1157,20 @@ const handleRouting = async () => {
 
     const currentMpStatus = params.get('status') || params.get('collection_status');
 
+    // ✅ REQ-012: Capture payment_id but don't auto-redirect to form
     if (currentMpStatus === 'approved' || currentMpStatus === 'success') {
-        sessionStorage.setItem('mp_success_flag', 'true');
         const urlPaymentId = params.get('payment_id') || params.get('collection_id');
         if (urlPaymentId) localStorage.setItem('mp_payment_id', urlPaymentId);
-    }
 
-    const hasPaid = currentMpStatus === 'approved' || sessionStorage.getItem('mp_success_flag') === 'true';
+        // Clean URL to remove status params
+        window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
+    }
 
     hideAllSections();
     const activeSections = getSections();
 
     if (!path.includes('/login') && hash !== '#login') {
         document.body.classList.add('bg-reiki');
-    }
-
-    console.log("[Router] Verificando aprovação:", hasPaid);
-
-    if (hasPaid) {
-        const raw        = localStorage.getItem('selectedSchedule');
-        const savedEvent = JSON.parse(raw || '{}');
-
-        if (savedEvent.schedule_id || savedEvent.id) {
-            (window as any).isPrePaid        = true;
-            (window as any).selectedEventId  = savedEvent.schedule_id || savedEvent.id;
-            (window as any).selectedSchedule = savedEvent;
-
-            sessionStorage.removeItem('mp_success_flag');
-
-            if (typeof (window as any).showRegistrationForm === 'function') {
-                (window as any).showRegistrationForm(savedEvent);
-                window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
-                return;
-            }
-        } else {
-            console.error("ERRO: LocalStorage vazio.");
-            window.location.hash = '#step-selection';
-        }
     }
 
     const isAdmin = hash === '#admin' || path.includes('/login') || path.includes('/admin');
@@ -1219,7 +1185,7 @@ const handleRouting = async () => {
     } else {
         if (activeSections.selection) {
             activeSections.selection.classList.remove('hidden');
-            if (!hasPaid) loadEvents();
+            loadEvents(); // ✅ Always reloads agenda — no shortcut to form
         }
     }
     injectVersion();
