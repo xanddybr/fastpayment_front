@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fastPayment</title>
+    <script type="module" crossorigin src="/beta/assets/index-C3LqtsA4.js"></script>
+    <link rel="stylesheet" crossorigin href="/beta/assets/index-Bc0Q5A_v.css">
+  </head>
+  <body class="bg-black text-slate-200 min-h-screen">
+    <div id="app" class="min-h-screen p-4 md:p-8">
+      <main class="w-full max-w-6xl mx-auto">
+        
+        <section id="login" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6 my-8">
+          <div class="text-center">
+            <div class="flex justify-center">
+                <img src="/beta/images/logo.png" alt="Logo" class="h-32 w-auto object-contain">
+            </div>
+            <p class="text-slate-500 mt-2 italic">Acesso ao Gerenciamento da agenda</p>
+          </div>
+          <div class="space-y-4">
+            <input type="email" id="admin-email" placeholder="E-mail" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+            <input type="password" id="admin-password" placeholder="Senha" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+            <button onclick="makeLogin()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-slate-800 transition-all">
+              Entrar
+            </button>
+          </div>
+          <div class="mt-4 text-center text-[5px] text-slate-400">
+             <span class="font-black text-slate-900 text-xl tracking-tighter mr-4"><span class="text-slate-400">fast</span>Payment <span class="app-version text-[13px] text-gray-400"></span></span>
+          </div>
+        </section>
+
+      <section id="agenda-manutencao" class="hidden col-span-full min-h-[400px] flex items-center justify-center">
+    <div class="bg-slate-900/50 border border-slate-800 p-10 rounded-[40px] text-center backdrop-blur-sm shadow-2xl">
+        
+        <div class="mb-10 flex justify-center">
+            <img src="/beta/assets/logo-DOSNmwm7.png" alt="Logo" class="w-50 h-auto object-contain">
+        </div>
+
+        <h2 class="text-3xl font-black text-white mb-4 uppercase tracking-widest">
+            Agenda em Atualização
+        </h2>
+        
+        <p class="text-slate-400 max-w-md mx-auto leading-relaxed text-lg">
+            Estamos preparando novos horários e experiências para você. <br>
+            <span class="text-fuchsia-400 font-bold italic mt-2 block">Voltaremos em instantes!</span>
+        </p>
+    </div>
+</section>
+
+        <section id="step-selection" class="hidden space-y-8">
+          <header class="text-center mb-10">
+            <h1 class="text-4xl font-black text-slate-400">Agenda Mistura de Luz <span class="app-version text-[10px] text-gray-400"></span></h1>
+            <p class="text-slate-500 mt-2 text-lg">Selecione o evento desejado!</p> 
+            <a href="/beta/login" class="text-slate-400 hover:text-fuchsia-500 text-[11px] font-black uppercase tracking-widest transition-colors">ACESSO ADMIN</a>
+          </header>
+
+          <div id="events-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+            <div class="flex justify-between items-center">
+             
+          </div>
+        </section>
+
+    <section id="step-1" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6">
+    
+    <!-- ✅ REQ-001: Back button -->
+
+    <h2 class="text-2xl font-bold text-center text-slate-800">Identificação do Comprador</h2>
+    <p id="step1-summary" class="text-1xl font-bold text-center text-slate-700"></p>
+    <div class="space-y-4">
+        <input type="text" id="user-name" placeholder="Nome Completo" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+        <input type="tel" id="user-phone" placeholder="WhatsApp (DDD + Número)" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+        <input type="email" id="email" placeholder="Seu melhor e-mail" class="w-full border rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none">
+        <button id="btn-send-otp" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-blue-600 transition-all shadow-lg">
+            Validar E-mail e Prosseguir →
+        </button>
+    </div>
+    <button onclick="goBackToSchedule()" class="flex items-center gap-2 text-sm text-slate-650 hover:text-slate-700 transition-colors font-medium">
+        ← Voltar para a agenda
+    </button>
+    
+</section>
+
+        <section id="step-2" class="hidden max-w-md mx-auto bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 space-y-6">
+          <h2 class="text-1xl font-bold text-center text-slate-500">Insira o codigo recebido em seu email</h2>
+          <p id="step2-summary" class="text-1xl font-bold text-center text-slate-700"></p>
+          <div class="space-y-4">
+            <input type="text" id="otp-code" maxlength="6" placeholder="000000" class="w-full text-center text-4xl font-black border rounded-xl p-3 text-slate-900 tracking-widest focus:ring-2 focus:ring-blue-500 outline-none">
+            <button id="btn-verify-otp" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg">
+              Verificar Código
+            </button>
+          </div>
+        </section>
+
+<section id="step-registration" class="hidden max-w-3xl mx-auto space-y-8 pb-20">
+    
+    <div class="text-center mb-8">
+        <span class="bg-green-500/10 text-green-500 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-500/20">Pagamento Identificado</span>
+        <h2 class="text-4xl font-black text-slate-500 mt-4">Conclua sua Inscrição</h2>
+        <p class="text-slate-500">Confira os dados do evento, e complete informações do aluno.</p>
+    </div>
+
+    <form id="form-complete-registration" class="space-y-6">
+        
+        <div class="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl text-white">
+    <div class="flex items-center gap-3 mb-6">
+        <span class="w-8 h-8 bg-fuchsia-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+        <h3 class="font-black uppercase text-sm tracking-widest text-fuchsia-400">Detalhes da Inscrição</h3>
+    </div>
+    <div class="space-y-2">
+        <p class="text-sm text-slate-400">Você esta realizando a inscrição para:</p>
+        <h4 id="reg-event-name" class="text-2xl font-black">Carregando evento...</h4>
+        
+        <div class="flex flex-wrap gap-3 mt-4">
+            <span id="reg-event-type" class="bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold uppercase border border-white/5"></span>
+            <span id="reg-event-unit" class="bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold uppercase border border-white/5"></span>
+        </div>
+        
+        <p id="reg-event-date" class="text-sm text-slate-300 mt-4 flex items-center gap-2 font-medium"></p>
+    </div>
+</div>
+
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                <h3 class="font-black text-slate-800 uppercase text-sm tracking-widest">Informações do Aluno</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div class="md:col-span-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nome Completo do Aluno</label>
+                    <input type="text" name="student_full_name" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="Nome de quem fará o curso" required>
+                </div>
+                
+               <!-- <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">E-mail do Aluno</label>
+                    <input type="email" name="student_email" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="email@do-aluno.com">
+                </div> 
+                -->
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">WhatsApp do Aluno</label>
+                    <input type="tel" name="student_phone" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required placeholder="(00) 00000-0000" required>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Profissão / Atividade</label>
+                    <input type="text" name="activity_professional" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required>
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Bairro</label>
+                    <input type="text" name="neighborhood" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required>
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Cidade</label>
+                    <input type="text" name="city" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-blue-600 transition-all" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                <h3 class="font-black text-slate-800 uppercase text-sm tracking-widest">Anamnesis</h3>
+            </div>
+            
+            <div class="space-y-6 text-slate-900">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                        <input type="checkbox" name="is_medium" value="1" class="w-5 h-5 accent-violet-600 mr-3">
+                        <span class="text-sm font-bold text-slate-700">Sou Médium</span>
+                    </label>
+                    <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                        <input type="checkbox" name="is_tule_member" value="1" class="w-5 h-5 accent-violet-600 mr-3">
+                        <span class="text-sm font-bold text-slate-700">Membro TULE</span>
+                    </label>
+                    <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                        <input type="checkbox" name="first_time" value="1" class="w-5 h-5 accent-violet-600 mr-3">
+                        <span class="text-sm font-bold text-slate-700">Minha primeira vez</span>
+                    </label>
+        
+                    <label class="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                        <select type="text" name="religion_mention" class="accent-violet-600 mr-3">
+                            <option selected ="não informado">Como me identifico como ? </option>
+                            <option value="Agnóstico">Agnóstico</option>
+                            <option value="Cético">Cético</option>
+                            <option value="Ateu">Ateu</option>
+                            <option value="Espiritualista">Espiritualista</option>
+                            <option value="Matrizes Africanas">Cultuo ritos de matrizes Africanas</option>
+                            <option value="Linhas do Oriente">Cultuo Linhas do Oriente</option>
+                            <option value="Universalista">Universalista</option>
+                            <option value="Protestante">Protestante</option>
+                            <option value="Protestante">Seguidor do Cristianismo</option>
+                            <option value="Judio">Judio</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">O que motivo fazer este curso? / "O que te motivou a fazer este curso?"</label>
+                    <textarea name="course_reason" rows="3" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-violet-600 transition-all" required placeholder="Motivo.."></textarea>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Indicação? / "Quem te recomendou este curso"</label>
+                    <input name="who_recomended" class="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-violet-600 transition-all" placeholder="Recomendado por quem?"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="w-full bg-slate-900 text-white font-black py-6 rounded-[2rem] shadow-2xl hover:bg-black transition-all uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95">
+            Confirmar e Finalizar Inscrição <span class="text-xl">🚀</span>
+        </button>
+    </form>
+</section>
+
+    <div id="modal-crud" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 id="modal-title" class="text-lg font-black text-slate-800 uppercase tracking-tight">Gerenciar</h3>
+              <button onclick="closeCrudModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+          </div>
+          
+          <div class="p-6 space-y-4 text-slate-900">
+              <div>
+                  <label class="text-[10px] font-bold text-slate-400 ml-1 uppercase">Novo Registro (Nome)</label>
+                  <input type="text" id="modal-input-name" class="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="Digite o nome...">
+              </div>
+              <div id="field-price" class="hidden">
+                  <label class="text-[10px] font-bold text-slate-400 ml-1 uppercase">Preço (R$)</label>
+                  <input type="number" id="modal-input-price" class="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.00">
+              </div>
+              <hr class="border-slate-100">
+              <div>
+                  <label class="text-[10px] font-bold text-slate-400 ml-1 uppercase">Registros Atuais</label>
+                  <div class="flex gap-2">
+                      <select id="modal-select-list" class="flex-1 border rounded-xl p-3 text-sm outline-none bg-slate-50">
+                          <option value="">Carregando...</option>
+                      </select>
+                      <button onclick="deleteCrudItem()" class="bg-red-50 text-red-600 px-4 rounded-xl hover:bg-red-600 transition-all font-bold text-xs">Excluir</button>
+                  </div>
+              </div>
+          </div>
+          <div class="p-6 bg-slate-50 flex gap-3">
+              <button onclick="closeCrudModal()" class="flex-1 py-3 text-sm font-bold text-slate-500">Cancelar</button>
+              <button onclick="saveCrudItem()" class="flex-1 py-3 text-sm font-bold bg-blue-600 text-white rounded-xl shadow-lg">Adicionar</button>
+          </div>
+      </div>
+    </div>
+
+    <div id="modal-anamnese" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden relative">
+        <button onclick="document.getElementById('modal-anamnese').classList.add('hidden')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-900 text-3xl z-10">&times;</button>
+        
+        <div id="content-anamnese" class="p-8">
+            </div>
+    </div>
+</div>
+
+  </body>
+</html>
