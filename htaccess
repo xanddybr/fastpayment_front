@@ -1,0 +1,18 @@
+RewriteEngine On
+RewriteBase /beta/
+
+# Deixar passar todos os endpoints da API (sem reescrever para index.html)
+RewriteRule ^api/ - [L]
+RewriteRule ^login$ - [L]
+RewriteRule ^logout$ - [L]
+RewriteRule ^schedules - [L]
+RewriteRule ^events - [L]
+RewriteRule ^units - [L]
+RewriteRule ^event-types - [L]
+RewriteRule ^persons - [L]
+RewriteRule ^subscribers - [L]
+
+# SPA: tudo que não for arquivo/pasta vai para o index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
