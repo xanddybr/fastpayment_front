@@ -1,4 +1,4 @@
-maint.ts mapping
+// maint.ts mapping //
 
 1 SectionResponsibility1Configuration & global variables
 2 Payment detection on page load

@@ -53,6 +53,19 @@ const cleanupExpiredCodes = async (): Promise<void> => {
     }
 };
 
+// Cleanup expired schedules (mark as unavailable)
+const cleanupExpiredSchedules = async (): Promise<void> => {
+    try {
+        const res  = await fetch(`${API_BASE_URL}/api/cron/schedules-cleanup`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.deleted > 0 || data.updated > 0) {
+            console.log(`🧹 Schedules cleanup: ${data.updated || data.deleted} expired schedule(s) closed`);
+        }
+    } catch (err) {
+        console.error('Schedules cleanup error:', err);
+    }
+};
+
 
 // =============================================================================
 // SECTION 4 — UTILITY FUNCTIONS
@@ -208,6 +221,7 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
         console.error("ERRO REAL DETECTADO:", e);
         container.innerHTML = '<p class="text-center col-span-full text-red-500">Erro ao carregar agenda.</p>';
     }
+    cleanupExpiredSchedules();
 };
 
 // REQ-001: Back to public schedule
@@ -279,7 +293,7 @@ const checkPendingPayment = async (email: string, scheduleId: number): Promise<b
         if (result.has_paid && result.pendencias?.length > 0) {
             const paymentId = result.pendencias[0].payment_id;
             localStorage.setItem('mp_payment_id', String(paymentId));
-            alert("Foi Identificado um pagamento aprovado que esta vinculado a este email, por favor conclua sua inscrição!");
+            alert("Foi Identificado um pagamento aprovado e vinculado a este email, por favor conclua sua inscrição!");
             (window as any).isPrePaid = true;
             (window as any).showRegistrationForm((window as any).selectedSchedule);
             return true;
@@ -656,7 +670,8 @@ const renderAdminDashboard = async () => {
             // REQ-003 + REQ-004: Run sanitizers silently on admin load
             cleanupPendingTransactions();
             cleanupExpiredCodes();
-
+            cleanupExpiredSchedules();
+            
             const currentName = localStorage.getItem('admin_full_name') || 'Administrador';
             container.innerHTML = `
                 <div class="flex flex-col items-center justify-center min-h-[50vh] text-center">
@@ -1156,22 +1171,47 @@ const handleRouting = async () => {
     const hash   = window.location.hash;
     const params = new URLSearchParams(window.location.search);
 
-    const currentMpStatus = params.get('status') || params.get('collection_status');
-
-    // ✅ REQ-012: Capture payment_id but don't auto-redirect to form
-    if (currentMpStatus === 'approved' || currentMpStatus === 'success') {
-        const urlPaymentId = params.get('payment_id') || params.get('collection_id');
-        if (urlPaymentId) localStorage.setItem('mp_payment_id', urlPaymentId);
-
-        // Clean URL to remove status params
-        window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
-    }
+    const urlPaymentId = params.get('payment_id') || params.get('collection_id');
+    const mpStatus     = params.get('status') || params.get('collection_status');
 
     hideAllSections();
     const activeSections = getSections();
 
     if (!path.includes('/login') && hash !== '#login') {
         document.body.classList.add('bg-reiki');
+    }
+
+    // ✅ Validação SEGURA do pagamento via backend
+    if (urlPaymentId && (mpStatus === 'approved' || mpStatus === 'success')) {
+        // Limpa URL imediatamente para evitar replays
+        window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
+
+        try {
+            const res    = await fetch(`${API_BASE_URL}/api/payment/validate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ payment_id: urlPaymentId }),
+            });
+            const result = await res.json();
+
+            if (res.ok && result.valid && result.subscription_status === 'pending') {
+                console.log("✅ Pagamento validado, abrindo formulário automaticamente");
+                localStorage.setItem('mp_payment_id', urlPaymentId);
+                localStorage.setItem('selectedSchedule', JSON.stringify(result.event));
+                (window as any).selectedEventId  = result.event.schedule_id;
+                (window as any).selectedSchedule = result.event;
+                (window as any).isPrePaid        = true;
+                (window as any).showRegistrationForm(result.event);
+                injectVersion();
+                return;
+            }
+
+            if (result.subscription_status === 'confirmed') {
+                alert("Esta inscrição já foi finalizada!");
+            }
+        } catch (err) {
+            console.error("Erro ao validar pagamento:", err);
+        }
     }
 
     const isAdmin = hash === '#admin' || path.includes('/login') || path.includes('/admin');
@@ -1186,7 +1226,7 @@ const handleRouting = async () => {
     } else {
         if (activeSections.selection) {
             activeSections.selection.classList.remove('hidden');
-            loadEvents(); // ✅ Always reloads agenda — no shortcut to form
+            loadEvents();
         }
     }
     injectVersion();
