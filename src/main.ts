@@ -836,7 +836,14 @@ const setupFormListener = () => {
             credentials: 'include',
             body: JSON.stringify(payload),
         });
-        if (res.ok) { alert("Salvo com sucesso!"); loadAdminTableData(); form.reset(); }
+        if (res.ok) {
+            alert("Salvo com sucesso!");
+            loadAdminTableData();
+            form.reset();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert("Erro ao salvar: " + (err.error || "Erro desconhecido. Verifique os campos."));
+        }
     });
 };
 
