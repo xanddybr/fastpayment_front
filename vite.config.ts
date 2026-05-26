@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   // O 'base' é o segredo. Ele diz ao Vite: 
   // 
-  base: '/beta/', 
+  base: '/',
   
   server: {
     // Configurações para o seu teste local
