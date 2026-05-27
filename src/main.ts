@@ -8,7 +8,7 @@ const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:8080'
     : 'https://agenda.misturadeluz.com';
 
-const APP_VERSION = "1.0.0beta";
+const APP_VERSION = "1.0.0";
 
 let inscriptionsCache: any[]                              = [];
 let modalOriginalHTML: string                             = '';
@@ -1084,7 +1084,7 @@ async function refreshModalList() {
 (window as any).makeLogout = async () => {
     try { await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST', credentials: 'include' }); } catch (e) {}
     localStorage.removeItem('admin_full_name');
-    window.location.href = '/beta/login';
+    window.location.href = '/login';
 };
 
 
