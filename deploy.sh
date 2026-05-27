@@ -4,7 +4,7 @@ set -e
 SSH_USER="u967889760"
 SSH_HOST="82.112.247.211"
 SSH_PORT="65002"
-REMOTE_PATH="domains/misturadeluz.com/public_html/beta"
+REMOTE_PATH="domains/misturadeluz.com/public_html/agendabeta"
 SSH_TARGET="${SSH_USER}@${SSH_HOST}"
 
 echo "==> Gerando build de produção..."
