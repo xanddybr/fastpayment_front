@@ -2,7 +2,7 @@
 
 const API_ADMIN = window.location.hostname === 'localhost'
     ? 'http://localhost:8080'
-    : 'https://agendabeta.misturadeluz.com';
+    : 'https://agenda.misturadeluz.com';
 
 // Função para gerenciar qual "página" aparece
 function showSection(sectionId: string) {
