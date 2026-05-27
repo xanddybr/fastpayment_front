@@ -10,8 +10,11 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  preview: {
+    port: 4173,
+    strictPort: true,
+  },
   build: {
-    // Garante que o build vá para a pasta certa se você precisar
     outDir: 'dist',
   }
 });

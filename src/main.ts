@@ -6,7 +6,7 @@ import './style.css';
 
 const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:8080'
-    : 'https://beta.misturadeluz.com/beta';
+    : 'https://agendabeta.misturadeluz.com';
 
 const APP_VERSION = "1.0.0beta";
 
@@ -321,6 +321,11 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
             if (data.has_paid) {
                 clearInterval(paymentMonitorInterval!);
                 paymentMonitorInterval = null;
+
+                if (data.pendencias?.length > 0) {
+                    localStorage.setItem('mp_payment_id', String(data.pendencias[0].payment_id));
+                }
+
                 alert("✅ Pagamento confirmado! Preencha a ficha abaixo para concluir.");
                 (window as any).isPrePaid = true;
                 (window as any).showRegistrationForm((window as any).selectedSchedule);
@@ -337,19 +342,24 @@ const proceedToCheckout = async () => {
     const scheduleId = parseInt((window as any).selectedEventId) || savedEvent.schedule_id;
     const email      = (document.querySelector<HTMLInputElement>('#email')?.value || '').trim();
     const payerName  = (document.querySelector<HTMLInputElement>('#user-name')?.value || '').trim();
+    const personId   = localStorage.getItem('pending_person_id');
 
-    console.log("🚀 Enviando para o Pay:", { email, scheduleId });
+    console.log("🚀 Enviando para o Pay:", { email, scheduleId, personId });
 
     if (!scheduleId) {
         alert("Erro: O ID do curso não foi encontrado. Selecione o curso novamente.");
         return;
     }
 
+    const payload: Record<string, unknown> = { email, schedule_id: scheduleId, payer_name: payerName };
+    if (personId) payload.person_id = parseInt(personId);
+
     const res  = await fetch(`${API_BASE_URL}/api/checkout/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, schedule_id: scheduleId, payer_name: payerName }),
+        body: JSON.stringify(payload),
     });
+    localStorage.removeItem('pending_person_id');
     const data = await res.json();
 
     // ✅ REQ-011: Already subscribed and confirmed — block (no second purchase for same event)
@@ -494,6 +504,10 @@ btnVerify?.addEventListener('click', async () => {
             body: JSON.stringify({ email, code, nome, phone }), // ✅ nome included
         });
         if (res.ok) {
+            const data = await res.json();
+            if (data.person_id) {
+                localStorage.setItem('pending_person_id', String(data.person_id));
+            }
             console.log("Código validado! Abrindo Mercado Pago...");
             await proceedToCheckout();
         } else {
@@ -772,7 +786,7 @@ const loadAdminTableData = async () => {
     if (!tbody) return;
 
     try {
-        const res  = await safeFetch(`${API_BASE_URL}/schedules`, { credentials: 'include' });
+        const res  = await safeFetch(`${API_BASE_URL}/api/admin/schedules`, { credentials: 'include' });
         const data = await res.json();
 
         tbody.innerHTML = data.map((item: any) => {
@@ -804,9 +818,9 @@ const loadFormOptions = async () => {
     const opt = { credentials: 'include' as RequestCredentials };
     try {
         const [ev, un, tp] = await Promise.all([
-            safeFetch(`${API_BASE_URL}/events`,      opt).then(r => r.json()),
-            safeFetch(`${API_BASE_URL}/units`,       opt).then(r => r.json()),
-            safeFetch(`${API_BASE_URL}/event-types`, opt).then(r => r.json()),
+            safeFetch(`${API_BASE_URL}/api/admin/events`,      opt).then(r => r.json()),
+            safeFetch(`${API_BASE_URL}/api/admin/units`,       opt).then(r => r.json()),
+            safeFetch(`${API_BASE_URL}/api/admin/event-types`, opt).then(r => r.json()),
         ]);
         const sEv = document.querySelector<HTMLSelectElement>('#select-evento');
         const sUn = document.querySelector<HTMLSelectElement>('#select-unidade');
@@ -830,7 +844,7 @@ const setupFormListener = () => {
             duration_minutes: parseInt((document.querySelector('#duration-input')  as HTMLInputElement).value,  10) || 0,
             status: 'available',
         };
-        const res = await safeFetch(`${API_BASE_URL}/schedules`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/admin/schedules`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -852,7 +866,7 @@ const loadInscriptionsData = async () => {
     if (!accordion) return;
 
     try {
-        const res     = await safeFetch(`${API_BASE_URL}/subscribers`, { credentials: 'include' });
+        const res     = await safeFetch(`${API_BASE_URL}/api/admin/subscribers`, { credentials: 'include' });
         const rawData = await res.json();
         inscriptionsCache = rawData;
 
@@ -974,7 +988,7 @@ const loadInscriptionsData = async () => {
 
 async function refreshModalList() {
     try {
-        const res    = await safeFetch(`${API_BASE_URL}/${currentTarget}`, { credentials: 'include' });
+        const res    = await safeFetch(`${API_BASE_URL}/api/admin/${currentTarget}`, { credentials: 'include' });
         const data   = await res.json();
         const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
         if (select) select.innerHTML = '<option value="">Excluir...</option>' + data.map((item: any) => `<option value="${item.id}">${item.name || item.nome}</option>`).join('');
@@ -997,7 +1011,7 @@ async function refreshModalList() {
     }
 
     try {
-        const res = await safeFetch(`${API_BASE_URL}/${currentTarget}`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/admin/${currentTarget}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -1022,7 +1036,7 @@ async function refreshModalList() {
     if (!id || !confirm("Tem certeza que deseja excluir este item?")) return;
 
     try {
-        const res = await safeFetch(`${API_BASE_URL}/${currentTarget}/${id}`, { method: 'DELETE', credentials: 'include' });
+        const res = await safeFetch(`${API_BASE_URL}/api/admin/${currentTarget}/${id}`, { method: 'DELETE', credentials: 'include' });
         if (res.ok) { alert("Excluído com sucesso!"); await refreshModalList(); await loadFormOptions(); }
         else { const err = await res.json(); alert("Erro ao excluir: " + (err.error || "Acesso negado")); }
     } catch (e) { console.error(e); }
@@ -1035,7 +1049,7 @@ async function refreshModalList() {
 
 (window as any).deleteSchedule = async (id: number) => {
     if (!confirm("Deseja excluir este registro?")) return;
-    const res = await safeFetch(`${API_BASE_URL}/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
+    const res = await safeFetch(`${API_BASE_URL}/api/admin/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) loadAdminTableData();
 };
 
@@ -1049,7 +1063,7 @@ async function refreshModalList() {
     if (!email || !password) { alert("Por favor, preencha todos os campos."); return; }
 
     try {
-        const res = await safeFetch(`${API_BASE_URL}/login`, {
+        const res = await safeFetch(`${API_BASE_URL}/api/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -1068,7 +1082,7 @@ async function refreshModalList() {
 };
 
 (window as any).makeLogout = async () => {
-    try { await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' }); } catch (e) {}
+    try { await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST', credentials: 'include' }); } catch (e) {}
     localStorage.removeItem('admin_full_name');
     window.location.href = '/beta/login';
 };

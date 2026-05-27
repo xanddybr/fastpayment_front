@@ -1,6 +1,8 @@
 // admin.ts - Controle de Acesso Administrativo
 
-const API_ADMIN = 'http://localhost:8080';
+const API_ADMIN = window.location.hostname === 'localhost'
+    ? 'http://localhost:8080'
+    : 'https://agendabeta.misturadeluz.com';
 
 // Função para gerenciar qual "página" aparece
 function showSection(sectionId: string) {
@@ -41,7 +43,7 @@ async function makeLogin() {
     btn.innerText = "Autenticando...";
 
     try {
-        const response = await fetch(`${API_ADMIN}/login`, {
+        const response = await fetch(`${API_ADMIN}/api/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 

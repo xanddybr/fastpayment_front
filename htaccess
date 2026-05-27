@@ -1,4 +1,9 @@
 RewriteEngine On
+
+# Rota /api/* para o entry point da API
+RewriteRule ^api(/.*)?$ api/public/index.php [QSA,L]
+
+# Frontend SPA — fallback para index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.html [L]
