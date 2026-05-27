@@ -1084,7 +1084,7 @@ async function refreshModalList() {
 (window as any).makeLogout = async () => {
     try { await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST', credentials: 'include' }); } catch (e) {}
     localStorage.removeItem('admin_full_name');
-    window.location.href = '/beta/login';
+    window.location.href = '/login';
 };
 
 
