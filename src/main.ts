@@ -117,6 +117,7 @@ const getSections = () => ({
     auth:         document.querySelector<HTMLDivElement>('#step-1'),
     otp:          document.querySelector<HTMLDivElement>('#step-2'),
     registration: document.querySelector<HTMLDivElement>('#step-registration'),
+    waiting:      document.querySelector<HTMLDivElement>('#step-waiting'),
     login:        document.querySelector<HTMLDivElement>('#login'),
 });
 
@@ -230,10 +231,16 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     // Clear selected event data
     localStorage.removeItem('selectedSchedule');
     localStorage.removeItem('mp_payment_id');
+    localStorage.removeItem('pending_payment_watch');
     sessionStorage.removeItem('mp_success_flag');
     (window as any).selectedEventId  = null;
     (window as any).selectedSchedule = null;
     (window as any).isPrePaid        = false;
+
+    if (paymentMonitorInterval) {
+        clearInterval(paymentMonitorInterval);
+        paymentMonitorInterval = null;
+    }
 
     // ✅ Clear all input fields
     if (nameInput)  nameInput.value  = '';
@@ -321,11 +328,13 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
             if (data.has_paid) {
                 clearInterval(paymentMonitorInterval!);
                 paymentMonitorInterval = null;
+                localStorage.removeItem('pending_payment_watch');
 
                 if (data.pendencias?.length > 0) {
                     localStorage.setItem('mp_payment_id', String(data.pendencias[0].payment_id));
                 }
 
+                getSections().waiting?.classList.add('hidden');
                 alert("✅ Pagamento confirmado! Preencha a ficha abaixo para concluir.");
                 (window as any).isPrePaid = true;
                 (window as any).showRegistrationForm((window as any).selectedSchedule);
@@ -378,10 +387,13 @@ const proceedToCheckout = async () => {
         return;
     }
 
-    // Happy path — redirect to MP
+    // Happy path — open MP in new tab, keep polling on this page
     if (res.ok && data.init_point) {
-        window.location.href = data.init_point;
+        localStorage.setItem('pending_payment_watch', JSON.stringify({ email, scheduleId }));
         if (email) startPaymentMonitoring(email, scheduleId);
+        hideAllSections();
+        getSections().waiting?.classList.remove('hidden');
+        window.open(data.init_point, '_blank');
         return;
     }
 
