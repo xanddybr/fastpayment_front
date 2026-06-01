@@ -5,8 +5,8 @@ import './style.css';
 // =============================================================================
 
 const API_BASE_URL = window.location.hostname === 'localhost'
-    ? 'http://localhost:8080'
-    : 'https://agendabeta.misturadeluz.com';
+    ? 'http://localhost:8000'
+    : `https://${window.location.hostname}`;
 
 const APP_VERSION = "1.0.0beta";
 
