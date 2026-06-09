@@ -5,7 +5,7 @@ import './style.css';
 // =============================================================================
 
 const API_BASE_URL = window.location.hostname === 'localhost'
-    ? 'http://localhost:8000'
+    ? 'http://localhost:8080'
     : `https://${window.location.hostname}`;
 
 const APP_VERSION = "1.0.0beta";
@@ -335,14 +335,52 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
                 }
 
                 getSections().waiting?.classList.add('hidden');
-                alert("✅ Pagamento confirmado! Preencha a ficha abaixo para concluir.");
                 (window as any).isPrePaid = true;
                 (window as any).showRegistrationForm((window as any).selectedSchedule);
+                return;
+            }
+
+            if (data.rejected) {
+                clearInterval(paymentMonitorInterval!);
+                paymentMonitorInterval = null;
+                localStorage.removeItem('pending_payment_watch');
+
+                const statusMap: Record<string, string> = {
+                    rejected:  'Pagamento recusado pela operadora.',
+                    cancelled: 'Pagamento cancelado.',
+                    refunded:  'Pagamento estornado.',
+                };
+                const msg = statusMap[data.status] ?? 'Pagamento não concluído.';
+                showWaitingError(msg);
             }
         } catch (e) {
             console.error("Aguardando aprovação...");
         }
     }, 5000);
+};
+
+const showWaitingError = (msg: string) => {
+    const section = getSections().waiting;
+    if (!section) return;
+    section.classList.remove('hidden');
+    section.innerHTML = `
+        <div class="flex flex-col items-center gap-6">
+            <div class="text-5xl">❌</div>
+            <div>
+                <h2 class="text-2xl font-black text-slate-200 mb-2">Pagamento não confirmado</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">${msg}</p>
+            </div>
+            <div class="w-full bg-slate-900 border border-red-800 rounded-2xl p-4 text-left">
+                <p class="text-sm text-slate-300">Você pode tentar novamente ou escolher outra forma de pagamento.</p>
+            </div>
+            <button onclick="proceedToCheckout()" class="w-full py-3 px-6 rounded-2xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-colors">
+                Tentar novamente
+            </button>
+            <button onclick="goBackToSchedule()" class="text-sm text-slate-500 hover:text-slate-300 transition-colors font-medium underline underline-offset-4">
+                Voltar para a agenda
+            </button>
+        </div>
+    `;
 };
 
 // Proceed to Mercado Pago checkout
@@ -400,6 +438,7 @@ const proceedToCheckout = async () => {
     console.error("Erro MP:", data);
     alert("Erro no pagamento: " + (data.error || "Tente novamente."));
 };
+(window as any).proceedToCheckout = proceedToCheckout;
 
 
 // =============================================================================
