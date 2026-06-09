@@ -15,6 +15,8 @@ let modalOriginalHTML: string                             = '';
 let selectedEvent                                         = { id: 0, name: '' };
 let currentTarget: 'events' | 'units' | 'event-types'    = 'events';
 let paymentMonitorInterval: ReturnType<typeof setInterval> | null = null;
+let checkoutWindow: Window | null = null;
+let editingScheduleId: number | null = null;
 
 
 // =============================================================================
@@ -117,6 +119,7 @@ const getSections = () => ({
     auth:         document.querySelector<HTMLDivElement>('#step-1'),
     otp:          document.querySelector<HTMLDivElement>('#step-2'),
     registration: document.querySelector<HTMLDivElement>('#step-registration'),
+    waiting:      document.querySelector<HTMLDivElement>('#step-waiting'),
     login:        document.querySelector<HTMLDivElement>('#login'),
 });
 
@@ -230,10 +233,16 @@ const loadEvents = async (eventSlug: string = '', typeSlug: string = '') => {
     // Clear selected event data
     localStorage.removeItem('selectedSchedule');
     localStorage.removeItem('mp_payment_id');
+    localStorage.removeItem('pending_payment_watch');
     sessionStorage.removeItem('mp_success_flag');
     (window as any).selectedEventId  = null;
     (window as any).selectedSchedule = null;
     (window as any).isPrePaid        = false;
+
+    if (paymentMonitorInterval) {
+        clearInterval(paymentMonitorInterval);
+        paymentMonitorInterval = null;
+    }
 
     // ✅ Clear all input fields
     if (nameInput)  nameInput.value  = '';
@@ -321,19 +330,93 @@ const startPaymentMonitoring = (email: string, scheduleId: number) => {
             if (data.has_paid) {
                 clearInterval(paymentMonitorInterval!);
                 paymentMonitorInterval = null;
+                localStorage.removeItem('pending_payment_watch');
 
                 if (data.pendencias?.length > 0) {
                     localStorage.setItem('mp_payment_id', String(data.pendencias[0].payment_id));
                 }
 
-                alert("✅ Pagamento confirmado! Preencha a ficha abaixo para concluir.");
-                (window as any).isPrePaid = true;
-                (window as any).showRegistrationForm((window as any).selectedSchedule);
+                showPaymentSuccessCountdown((window as any).selectedSchedule);
+                return;
+            }
+
+            if (data.rejected) {
+                clearInterval(paymentMonitorInterval!);
+                paymentMonitorInterval = null;
+                localStorage.removeItem('pending_payment_watch');
+
+                const statusMap: Record<string, string> = {
+                    rejected:  'Pagamento recusado pela operadora.',
+                    cancelled: 'Pagamento cancelado.',
+                    refunded:  'Pagamento estornado.',
+                };
+                const msg = statusMap[data.status] ?? 'Pagamento não concluído.';
+                showWaitingError(msg);
             }
         } catch (e) {
             console.error("Aguardando aprovação...");
         }
     }, 5000);
+};
+
+const showPaymentSuccessCountdown = (schedule: any) => {
+    const section = getSections().waiting;
+    if (!section) return;
+
+    if (checkoutWindow && !checkoutWindow.closed) {
+        checkoutWindow.close();
+        checkoutWindow = null;
+    }
+
+    let seconds = 5;
+
+    const render = (s: number) => {
+        section.innerHTML = `
+            <div class="flex flex-col items-center gap-6">
+                <div class="text-6xl">✅</div>
+                <div>
+                    <h2 class="text-2xl font-black text-slate-200 mb-2">Pagamento Confirmado!</h2>
+                    <p class="text-slate-400 text-sm leading-relaxed">Redirecionando para o formulário em <span class="text-fuchsia-400 font-black text-lg">${s}</span> segundo${s !== 1 ? 's' : ''}...</p>
+                </div>
+            </div>`;
+    };
+
+    render(seconds);
+
+    const countdown = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+            clearInterval(countdown);
+            (window as any).isPrePaid = true;
+            (window as any).showRegistrationForm(schedule);
+        } else {
+            render(seconds);
+        }
+    }, 1000);
+};
+
+const showWaitingError = (msg: string) => {
+    const section = getSections().waiting;
+    if (!section) return;
+    section.classList.remove('hidden');
+    section.innerHTML = `
+        <div class="flex flex-col items-center gap-6">
+            <div class="text-5xl">❌</div>
+            <div>
+                <h2 class="text-2xl font-black text-slate-200 mb-2">Pagamento não confirmado</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">${msg}</p>
+            </div>
+            <div class="w-full bg-slate-900 border border-red-800 rounded-2xl p-4 text-left">
+                <p class="text-sm text-slate-300">Você pode tentar novamente ou escolher outra forma de pagamento.</p>
+            </div>
+            <button onclick="proceedToCheckout()" class="w-full py-3 px-6 rounded-2xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-colors">
+                Tentar novamente
+            </button>
+            <button onclick="goBackToSchedule()" class="text-sm text-slate-500 hover:text-slate-300 transition-colors font-medium underline underline-offset-4">
+                Voltar para a agenda
+            </button>
+        </div>
+    `;
 };
 
 // Proceed to Mercado Pago checkout
@@ -378,16 +461,20 @@ const proceedToCheckout = async () => {
         return;
     }
 
-    // Happy path — redirect to MP
+    // Happy path — open MP in new tab, keep polling on this page
     if (res.ok && data.init_point) {
-        window.location.href = data.init_point;
+        localStorage.setItem('pending_payment_watch', JSON.stringify({ email, scheduleId }));
         if (email) startPaymentMonitoring(email, scheduleId);
+        hideAllSections();
+        getSections().waiting?.classList.remove('hidden');
+        checkoutWindow = window.open(data.init_point, '_blank');
         return;
     }
 
     console.error("Erro MP:", data);
     alert("Erro no pagamento: " + (data.error || "Tente novamente."));
 };
+(window as any).proceedToCheckout = proceedToCheckout;
 
 
 // =============================================================================
@@ -735,8 +822,9 @@ const renderAdminDashboard = async () => {
                                 <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Vagas</label>
                                 <input type="number" id="vagas-input" min="0" placeholder="Qtd" class="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-center" required>
                             </div>
-                            <div class="md:col-span-1">
-                                <button type="submit" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase hover:bg-blue-700 transition-all shadow-md">Salvar</button>
+                            <div class="md:col-span-1 flex flex-col gap-1">
+                                <button type="submit" id="btn-save-schedule" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase hover:bg-blue-700 transition-all shadow-md">Salvar</button>
+                                <button type="button" onclick="clearScheduleForm()" class="w-full bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-[10px] uppercase hover:bg-slate-200 transition-all">Limpar</button>
                             </div>
                         </form>
                     </div>
@@ -789,7 +877,10 @@ const loadAdminTableData = async () => {
         const res  = await safeFetch(`${API_BASE_URL}/api/admin/schedules`, { credentials: 'include' });
         const data = await res.json();
 
+        (window as any).scheduleRowData = {};
         tbody.innerHTML = data.map((item: any) => {
+            (window as any).scheduleRowData[item.schedule_id] = item;
+
             const dataInicio = new Date(item.scheduled_at);
             const duration   = parseInt(item.duration_minutes) || 0;
             const dataFim    = new Date(dataInicio.getTime() + duration * 60000);
@@ -798,7 +889,7 @@ const loadAdminTableData = async () => {
             const color      = item.vacancies > 0 ? 'bg-emerald-50 text-black-600' : 'bg-red-50 text-red-600';
 
             return `
-            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 text-slate-700">
+            <tr class="cursor-pointer hover:bg-violet-50 transition-colors border-b border-slate-50 text-slate-700" onclick="editSchedule(${item.schedule_id})">
                 <td class="p-4"><span class="px-3 py-1 rounded-full text-[15px] ${color}">${getDayName(item.scheduled_at)}</span></td>
                 <td class="p-4"><span class="px-3 py-1 rounded-full text-[15px] ${color}">${dataInicio.toLocaleDateString('pt-BR')} ${horaInicio} - ${horaFim}</span></td>
                 <td class="p-4"><span class="px-3 py-1 rounded-full text-[15px] ${color}">${item.event_name}</span></td>
@@ -806,7 +897,7 @@ const loadAdminTableData = async () => {
                 <td class="p-4"><span class="px-3 py-1 rounded-full text-[15px] ${color}">R$ ${item.event_price}</span></td>
                 <td class="p-4"><span class="px-3 py-1 rounded-full text-[15px] ${color}">${item.unit_name}</span></td>
                 <td class="p-4 text-center"><span class="px-3 py-1 rounded-full text-[15px] ${item.vacancies > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}">${item.vacancies}</span></td>
-                <td class="p-4 text-center"><button onclick="deleteSchedule(${item.schedule_id})" class="text-red-400 hover:text-red-600 font-bold transition-colors p-2 hover:bg-red-50 rounded-lg">Excluir</button></td>
+                <td class="p-4 text-center"><button onclick="event.stopPropagation(); deleteSchedule(${item.schedule_id})" class="text-red-400 hover:text-red-600 font-bold transition-colors p-2 hover:bg-red-50 rounded-lg">Excluir</button></td>
             </tr>`;
         }).join('');
     } catch (e) {
@@ -836,29 +927,80 @@ const setupFormListener = () => {
     form?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const payload = {
-            scheduled_at:     (document.querySelector('#datahora')        as HTMLInputElement).value,
-            event_id:         parseInt((document.querySelector('#select-evento')   as HTMLSelectElement).value, 10),
-            unit_id:          parseInt((document.querySelector('#select-unidade')  as HTMLSelectElement).value, 10),
-            event_type_id:    parseInt((document.querySelector('#select-tipo')     as HTMLSelectElement).value, 10),
-            vacancies:        parseInt((document.querySelector('#vagas-input')     as HTMLInputElement).value,  10) || 0,
-            duration_minutes: parseInt((document.querySelector('#duration-input')  as HTMLInputElement).value,  10) || 0,
+            scheduled_at:     (document.querySelector('#datahora')       as HTMLInputElement).value,
+            event_id:         parseInt((document.querySelector('#select-evento')  as HTMLSelectElement).value, 10),
+            unit_id:          parseInt((document.querySelector('#select-unidade') as HTMLSelectElement).value, 10),
+            event_type_id:    parseInt((document.querySelector('#select-tipo')    as HTMLSelectElement).value, 10),
+            vacancies:        parseInt((document.querySelector('#vagas-input')    as HTMLInputElement).value,  10) || 0,
+            duration_minutes: parseInt((document.querySelector('#duration-input') as HTMLInputElement).value,  10) || 0,
             status: 'available',
         };
-        const res = await safeFetch(`${API_BASE_URL}/api/admin/schedules`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-            alert("Salvo com sucesso!");
-            loadAdminTableData();
-            form.reset();
+
+        if (editingScheduleId) {
+            const res = await safeFetch(`${API_BASE_URL}/api/admin/schedules/${editingScheduleId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload),
+            });
+            if (res.ok) {
+                alert("Alterado com sucesso!");
+                (window as any).clearScheduleForm();
+                loadAdminTableData();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert("Erro ao alterar: " + (err.error || "Erro desconhecido."));
+            }
         } else {
-            const err = await res.json().catch(() => ({}));
-            alert("Erro ao salvar: " + (err.error || "Erro desconhecido. Verifique os campos."));
+            const res = await safeFetch(`${API_BASE_URL}/api/admin/schedules`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload),
+            });
+            if (res.ok) {
+                alert("Salvo com sucesso!");
+                loadAdminTableData();
+                form.reset();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert("Erro ao salvar: " + (err.error || "Erro desconhecido. Verifique os campos."));
+            }
         }
     });
+};
+
+(window as any).editSchedule = (scheduleId: number) => {
+    const item = (window as any).scheduleRowData?.[scheduleId];
+    if (!item) return;
+
+    editingScheduleId = scheduleId;
+
+    const datetimeInput = document.querySelector<HTMLInputElement>('#datahora');
+    const durationInput = document.querySelector<HTMLInputElement>('#duration-input');
+    const selectEvento  = document.querySelector<HTMLSelectElement>('#select-evento');
+    const selectTipo    = document.querySelector<HTMLSelectElement>('#select-tipo');
+    const selectUnidade = document.querySelector<HTMLSelectElement>('#select-unidade');
+    const vagasInput    = document.querySelector<HTMLInputElement>('#vagas-input');
+    const saveBtn       = document.querySelector<HTMLButtonElement>('#btn-save-schedule');
+
+    if (datetimeInput) datetimeInput.value = (item.scheduled_at ?? '').replace(' ', 'T').slice(0, 16);
+    if (durationInput) durationInput.value = item.duration_minutes ?? '';
+    if (selectEvento)  selectEvento.value  = item.event_id;
+    if (selectTipo)    selectTipo.value    = item.event_type_id;
+    if (selectUnidade) selectUnidade.value = item.unit_id;
+    if (vagasInput)    vagasInput.value    = item.vacancies ?? '';
+    if (saveBtn)       saveBtn.textContent = 'Alterar';
+
+    document.querySelector('#formAgendamento')?.scrollIntoView({ behavior: 'smooth' });
+};
+
+(window as any).clearScheduleForm = () => {
+    editingScheduleId = null;
+    const form    = document.querySelector<HTMLFormElement>('#formAgendamento');
+    const saveBtn = document.querySelector<HTMLButtonElement>('#btn-save-schedule');
+    form?.reset();
+    if (saveBtn) saveBtn.textContent = 'Salvar';
 };
 
 const loadInscriptionsData = async () => {
@@ -933,7 +1075,7 @@ const loadInscriptionsData = async () => {
                                     <div>
                                         <div class="mb-4">
                                             <span class="text-xs font-black uppercase tracking-widest ${colorSubscribe}">${labelSubscribe}</span>
-                                            <div class="text-xs"><b class="text-slate-400 uppercase block text-[12px]">${dataFormater(ev.created_at || '')}</b></div>
+                                            ${ev.created_at ? `<div class="text-xs"><b class="text-slate-400 uppercase block text-[12px]">${dataFormater(ev.created_at)}</b></div>` : ''}
                                             <h5 class="text-2xl font-black text-slate-900 mt-1">${ev.event_name || 'Evento não encontrado'}</h5>
                                             <p class="text-sm font-bold text-slate-400 uppercase">${ev.type_name || 'Tipo não informado'} | ${ev.unit_name || 'Unidade'}</p>
                                         </div>
@@ -991,7 +1133,11 @@ async function refreshModalList() {
         const res    = await safeFetch(`${API_BASE_URL}/api/admin/${currentTarget}`, { credentials: 'include' });
         const data   = await res.json();
         const select = document.querySelector<HTMLSelectElement>('#modal-select-list');
-        if (select) select.innerHTML = '<option value="">Excluir...</option>' + data.map((item: any) => `<option value="${item.id}">${item.name || item.nome}</option>`).join('');
+        if (select) select.innerHTML = '<option value="">Excluir...</option>' + data.map((item: any) => {
+            const label = item.name || item.nome;
+            const suffix = currentTarget === 'events' && item.price != null ? ` — R$ ${parseFloat(item.price).toFixed(2)}` : '';
+            return `<option value="${item.id}">${label}${suffix}</option>`;
+        }).join('');
     } catch (e) { console.error(e); }
 }
 
