@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* Vite's default React template palette: dark #242424/white, light #ffffff/#213547,
+   purple accent #646cff/#535bf2. Functional colors (emerald/red/amber) are untouched. */
+@theme {
+  --color-brand: #646cff;
+  --color-brand-hover: #535bf2;
+  --color-brand-light: #747bff;
+  --color-surface-dark: #242424;
+  --color-surface-light: #ffffff;
+  --color-ink-dark: #ffffff;
+  --color-ink-light: #213547;
+}
+
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-surface-light);
+  color: var(--color-ink-light);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Modal enter/exit transition: fade + slide down from top, similar to Bootstrap's .modal.fade */
+.modal-overlay {
+  opacity: 0;
+  transition: opacity 0.25s ease, backdrop-filter 0.25s ease;
+}
+.modal-overlay.modal-show {
+  opacity: 1;
+}
+.modal-panel {
+  opacity: 0;
+  transform: translateY(-40px);
+  transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+}
+.modal-panel.modal-show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Reiki background watermark behind the public schedule flow */
+body.bg-reiki::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/reiki.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.15;
+  z-index: -1;
+  pointer-events: none;
+}
+
+body.bg-reiki {
+  background-color: var(--color-surface-dark);
+  color: var(--color-ink-dark);
+}
