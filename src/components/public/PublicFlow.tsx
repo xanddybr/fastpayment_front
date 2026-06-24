@@ -8,10 +8,46 @@ import OtpForm from './OtpForm';
 import PaymentWaiting from './PaymentWaiting';
 import RegistrationForm from './RegistrationForm';
 
+// Mobile browsers often kill the tab in the background when the user switches apps
+// (e.g. to check the OTP email) and reload it on return, wiping React state.
+// Persisting step/schedule/identification lets the in-progress form survive that reload.
+const RESTORABLE_STEPS: Step[] = ['auth', 'otp', 'registration'];
+
+const readStoredSchedule = (): Schedule | null => {
+  try {
+    const raw = localStorage.getItem('selectedSchedule');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const readStoredIdentification = () => {
+  try {
+    const raw = sessionStorage.getItem('pf_identification');
+    return raw ? JSON.parse(raw) : { name: '', phone: '', email: '' };
+  } catch {
+    return { name: '', phone: '', email: '' };
+  }
+};
+
+const readStoredStep = (): Step => {
+  const stored = sessionStorage.getItem('pf_step') as Step | null;
+  return stored && RESTORABLE_STEPS.includes(stored) && readStoredSchedule() ? stored : 'selection';
+};
+
 export default function PublicFlow() {
-  const [step, setStep] = useState<Step>('selection');
-  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
-  const [identification, setIdentification] = useState({ name: '', phone: '', email: '' });
+  const [step, setStep] = useState<Step>(readStoredStep);
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(readStoredSchedule);
+  const [identification, setIdentification] = useState(readStoredIdentification);
+
+  useEffect(() => {
+    sessionStorage.setItem('pf_step', step);
+  }, [step]);
+
+  useEffect(() => {
+    sessionStorage.setItem('pf_identification', JSON.stringify(identification));
+  }, [identification]);
 
   const { phase, countdown, errorMessage, proceedToCheckout, retry, cancel } = usePaymentCheckout({
     onWaitingStart: () => setStep('waiting'),
@@ -24,6 +60,8 @@ export default function PublicFlow() {
     localStorage.removeItem('mp_payment_id');
     localStorage.removeItem('pending_payment_watch');
     sessionStorage.removeItem('mp_success_flag');
+    sessionStorage.removeItem('pf_step');
+    sessionStorage.removeItem('pf_identification');
     cancel();
     setSelectedSchedule(null);
     setIdentification({ name: '', phone: '', email: '' });
