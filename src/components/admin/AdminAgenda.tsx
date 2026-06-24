@@ -15,10 +15,25 @@ import CrudModal from './CrudModal';
 const emptyForm = {
   scheduledAt: '',
   duration: '',
+  durationUnit: 'min' as DurationUnit,
   eventId: '',
   typeId: '',
   unitId: '',
   vacancies: '',
+};
+
+type DurationUnit = 'min' | 'h' | 'd';
+
+const MINUTES_PER_UNIT: Record<DurationUnit, number> = { min: 1, h: 60, d: 1440 };
+
+const splitDurationMinutes = (minutes: number): { duration: string; durationUnit: DurationUnit } => {
+  if (minutes > 0 && minutes % MINUTES_PER_UNIT.d === 0) {
+    return { duration: String(minutes / MINUTES_PER_UNIT.d), durationUnit: 'd' };
+  }
+  if (minutes > 0 && minutes % MINUTES_PER_UNIT.h === 0) {
+    return { duration: String(minutes / MINUTES_PER_UNIT.h), durationUnit: 'h' };
+  }
+  return { duration: String(minutes || ''), durationUnit: 'min' };
 };
 
 export default function AdminAgenda() {
@@ -70,9 +85,11 @@ export default function AdminAgenda() {
   };
 
   const handleEdit = (item: Schedule) => {
+    const { duration, durationUnit } = splitDurationMinutes(parseInt(String(item.duration_minutes ?? ''), 10) || 0);
     setForm({
       scheduledAt: (item.scheduled_at ?? '').replace(' ', 'T').slice(0, 16),
-      duration: String(item.duration_minutes ?? ''),
+      duration,
+      durationUnit,
       eventId: String(item.event_id),
       typeId: String(item.event_type_id),
       unitId: String(item.unit_id),
@@ -96,7 +113,7 @@ export default function AdminAgenda() {
       unit_id: parseInt(form.unitId, 10),
       event_type_id: parseInt(form.typeId, 10),
       vacancies: parseInt(form.vacancies, 10) || 0,
-      duration_minutes: parseInt(form.duration, 10) || 0,
+      duration_minutes: (parseInt(form.duration, 10) || 0) * MINUTES_PER_UNIT[form.durationUnit],
       status: 'available',
     };
 
@@ -275,16 +292,27 @@ export default function AdminAgenda() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Duração (min)</label>
-                <input
-                  type="number"
-                  min={1}
-                  required
-                  placeholder="min"
-                  value={form.duration}
-                  onChange={(e) => setForm({ ...form, duration: e.target.value })}
-                  className="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-brand text-center"
-                />
+                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Duração</label>
+                <div className="flex gap-1">
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    placeholder="Duração"
+                    value={form.duration}
+                    onChange={(e) => setForm({ ...form, duration: e.target.value })}
+                    className="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-brand text-center"
+                  />
+                  <select
+                    value={form.durationUnit}
+                    onChange={(e) => setForm({ ...form, durationUnit: e.target.value as DurationUnit })}
+                    className="border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-brand bg-white"
+                  >
+                    <option value="min">min</option>
+                    <option value="h">horas</option>
+                    <option value="d">dias</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Vagas</label>

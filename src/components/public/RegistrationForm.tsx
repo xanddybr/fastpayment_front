@@ -15,6 +15,7 @@ export default function RegistrationForm({ schedule, onDone }: RegistrationFormP
   const dataRef = schedule.scheduled_at;
   const dataObjeto = dataRef ? new Date(dataRef.replace(/-/g, '/')) : null;
   const scheduleId = schedule.schedule_id ?? schedule.id;
+  const isFree = parseFloat(String(schedule.event_price)) === 0;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -71,7 +72,7 @@ export default function RegistrationForm({ schedule, onDone }: RegistrationFormP
     <section className="max-w-3xl mx-auto space-y-8 pb-20">
       <div className="text-center mb-8">
         <span className="bg-green-500/10 text-green-500 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-500/20">
-          Pagamento Identificado
+          {isFree ? 'Inscrição Gratuita' : 'Pagamento Identificado'}
         </span>
         <h2 className="text-4xl font-black text-white mt-4">Conclua sua Inscrição</h2>
         <p className="text-slate-500">Confira os dados do evento, e complete informações do aluno.</p>

@@ -137,6 +137,14 @@ export function usePaymentCheckout({ onWaitingStart, onRegister, onBackToSchedul
         return;
       }
 
+      // Evento gratuito: backend confirma a inscrição de cara e devolve só o payment_id,
+      // sem init_point — não há checkout do Mercado Pago para abrir.
+      if (ok && data.payment_id && !data.init_point) {
+        localStorage.setItem('mp_payment_id', String(data.payment_id));
+        onRegister(true);
+        return;
+      }
+
       console.error('Erro MP:', data);
       alert('Erro no pagamento: ' + (data.error || 'Tente novamente.'));
     },

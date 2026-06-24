@@ -11,6 +11,7 @@ interface ScheduleCardProps {
 function ScheduleCard({ item, onSelect }: ScheduleCardProps) {
   const { dataInicio, horarioExibicao } = formatScheduleWindow(item.scheduled_at, item.duration_minutes);
   const hasVacancies = item.vacancies > 0;
+  const isFree = parseFloat(String(item.event_price)) === 0;
 
   return (
     <div className="bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-white/10 p-6 rounded-3xl shadow-2xl hover:border-brand transition-all duration-300 relative overflow-hidden">
@@ -30,10 +31,14 @@ function ScheduleCard({ item, onSelect }: ScheduleCardProps) {
       </div>
       <h3 className="text-xl font-black text-brand mb-1">{item.event_name}</h3>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-baseline gap-1">
-          <span className="text-xs text-slate-500 font-bold uppercase">R$</span>
-          <span className="text-2xl font-black">{item.event_price}</span>
-        </div>
+        {isFree ? (
+          <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">Gratuito</span>
+        ) : (
+          <div className="flex items-baseline gap-1">
+            <span className="text-xs text-slate-500 font-bold uppercase">R$</span>
+            <span className="text-2xl font-black">{item.event_price}</span>
+          </div>
+        )}
         <span className="text-[15px] text-slate-500 font-black uppercase tracking-tighter">{item.unit_name}</span>
       </div>
       <div className="space-y-2 mb-6 border-l-2 border-brand/30 pl-4">

@@ -20,6 +20,7 @@ export default function CrudModal({ target, onClose, onSaved }: CrudModalProps) 
   const [list, setList] = useState<NamedOption[]>([]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [isFree, setIsFree] = useState(false);
   const [selectedId, setSelectedId] = useState('');
 
   const refreshList = async () => {
@@ -43,11 +44,11 @@ export default function CrudModal({ target, onClose, onSaved }: CrudModalProps) 
     }
     const payload: { name: string; price?: string } = { name: name.trim() };
     if (target === 'events') {
-      if (!price) {
-        alert('Por favor, digite o preço!');
+      if (!isFree && !price) {
+        alert('Por favor, digite o preço, ou marque como gratuito!');
         return;
       }
-      payload.price = price;
+      payload.price = isFree ? '0.00' : price;
     }
 
     try {
@@ -56,6 +57,7 @@ export default function CrudModal({ target, onClose, onSaved }: CrudModalProps) 
         alert('Salvo com sucesso!');
         setName('');
         setPrice('');
+        setIsFree(false);
         await refreshList();
         onSaved();
       } else {
@@ -87,7 +89,7 @@ export default function CrudModal({ target, onClose, onSaved }: CrudModalProps) 
 
   return (
     <div
-      className={`modal-overlay ${show ? 'modal-show' : ''} fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4`}
+      className={`modal-overlay ${show ? 'modal-show' : ''} fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[60] flex items-center justify-center p-4`}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -117,10 +119,20 @@ export default function CrudModal({ target, onClose, onSaved }: CrudModalProps) 
               <input
                 type="number"
                 value={price}
+                disabled={isFree}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
+                className="w-full border rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-brand disabled:bg-slate-100 disabled:text-slate-400"
                 placeholder="0.00"
               />
+              <label className="flex items-center gap-2 mt-2 ml-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isFree}
+                  onChange={(e) => setIsFree(e.target.checked)}
+                  className="w-4 h-4 accent-brand"
+                />
+                <span className="text-xs font-bold text-slate-500">Evento gratuito</span>
+              </label>
             </div>
           )}
           <hr className="border-slate-100" />

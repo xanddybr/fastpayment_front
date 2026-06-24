@@ -113,7 +113,12 @@ export default function AdminInscricoes() {
                   <div className="space-y-6">
                     {person.events.map((ev) => {
                       const isPast = new Date((ev.event_date || '').replace(/-/g, '/')) < new Date();
-                      const colorPayment = ev.payment_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                      const isFree = parseFloat(String(ev.valor_evento)) === 0;
+                      const colorPayment = isFree
+                        ? 'bg-sky-100 text-sky-700'
+                        : ev.payment_status === 'approved'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-amber-100 text-amber-700';
                       const colorSubscribe =
                         ev.enrollment_status === 'confirmed' ? 'bg-green-100 text-green-700' : isPast ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700';
                       const labelSubscribe = ev.enrollment_status === 'confirmed' ? '✅ Inscrito' : isPast ? '🔴 Prazo Expirado' : '🟡 Aguardando Inscrição';
@@ -121,7 +126,7 @@ export default function AdminInscricoes() {
                       return (
                         <div key={ev.subscribed_id} className="bg-surface-light p-5 sm:p-8 rounded-2xl border border-slate-200 shadow-md relative">
                           <div className={`absolute top-5 sm:top-8 right-5 sm:right-8 ${colorPayment} px-4 py-1.5 rounded-full text-[11px] sm:text-[13px] font-black uppercase tracking-tighter`}>
-                            {ev.payment_status === 'approved' ? 'Pagamento: Confirmado' : 'Pagamento: Pendente'}
+                            {isFree ? 'Gratuito' : ev.payment_status === 'approved' ? 'Pagamento: Confirmado' : 'Pagamento: Pendente'}
                           </div>
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 pt-8 lg:pt-0">
                             <div>
@@ -148,7 +153,7 @@ export default function AdminInscricoes() {
                                 </div>
                                 <div className="text-xs">
                                   <b className="text-slate-400 uppercase block text-[15px]">Valor</b>
-                                  <span className="font-black text-slate-900 block text-[15px]">R$ {ev.valor_evento}</span>
+                                  <span className="font-black text-slate-900 block text-[15px]">{isFree ? 'Gratuito' : `R$ ${ev.valor_evento}`}</span>
                                 </div>
                               </div>
                             </div>
