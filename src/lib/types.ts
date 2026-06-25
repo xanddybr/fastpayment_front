@@ -48,6 +48,8 @@ export interface Subscriber {
   activity_professional?: string;
   city?: string;
   neighborhood?: string;
+  street?: string;
+  birth_date?: string;
   transacao_gateway?: string;
   event_name?: string;
   type_name?: string;
@@ -61,6 +63,7 @@ export interface Subscriber {
   is_medium?: number;
   is_tule_member?: number;
   first_time?: number;
+  already_student?: number;
   religion_mention?: string;
   course_reason?: string;
   who_recomended?: string;
@@ -70,13 +73,16 @@ export interface RegistrationPayload {
   student_full_name: FormDataEntryValue | undefined;
   student_phone: FormDataEntryValue | undefined;
   activity_professional: FormDataEntryValue | undefined;
+  street: FormDataEntryValue | undefined;
   neighborhood: FormDataEntryValue | undefined;
   city: FormDataEntryValue | undefined;
+  birth_date: FormDataEntryValue | undefined;
   schedule_id: number;
   payment_id: string;
   is_medium: number;
   is_tule_member: number;
   first_time: number;
+  already_student: number;
   religion_mention: FormDataEntryValue | undefined;
   course_reason: FormDataEntryValue | undefined;
   who_recomended: FormDataEntryValue | undefined;

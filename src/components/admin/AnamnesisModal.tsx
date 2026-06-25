@@ -33,6 +33,14 @@ export default function AnamnesisModal({ ficha, onClose }: AnamnesisModalProps) 
               <b className="text-[9px] text-slate-400 uppercase block mb-1">Email aluno</b>
               <span className="text-sm font-bold">{ficha.email || '-'}</span>
             </div>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <b className="text-[9px] text-slate-400 uppercase block mb-1">Rua</b>
+              <span className="text-sm font-bold">{ficha.street || '-'}</span>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <b className="text-[9px] text-slate-400 uppercase block mb-1">Nascimento</b>
+              <span className="text-sm font-bold">{ficha.birth_date || '-'}</span>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 p-2">
             <div className="flex items-center gap-2 text-sm font-medium">
@@ -43,6 +51,9 @@ export default function AnamnesisModal({ ficha, onClose }: AnamnesisModalProps) 
             </div>
             <div className="flex items-center gap-2 text-sm font-medium">
               {ficha.first_time == 1 ? '✅' : '?'} <span className="text-slate-600">Primeira Vez</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              {ficha.already_student == 1 ? '✅' : '?'} <span className="text-slate-600">Já é aluno</span>
             </div>
             <div className="text-sm font-medium">
               <span className="text-slate-400">Religião:</span> {ficha.religion_mention || '?'}

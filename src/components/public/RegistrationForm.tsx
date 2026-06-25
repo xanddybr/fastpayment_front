@@ -37,13 +37,16 @@ export default function RegistrationForm({ schedule, onDone }: RegistrationFormP
       student_full_name: data.student_full_name,
       student_phone: data.student_phone,
       activity_professional: data.activity_professional,
+      street: data.street,
       neighborhood: data.neighborhood,
       city: data.city,
+      birth_date: data.birth_date,
       schedule_id: scheduleId,
       payment_id: paymentId,
       is_medium: data.is_medium ? 1 : 0,
       is_tule_member: data.is_tule_member ? 1 : 0,
       first_time: data.first_time ? 1 : 0,
+      already_student: data.already_student ? 1 : 0,
       religion_mention: data.religion_mention,
       course_reason: data.course_reason,
       who_recomended: data.who_recomended,
@@ -144,6 +147,24 @@ export default function RegistrationForm({ schedule, onDone }: RegistrationFormP
               />
             </div>
             <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Data de Nascimento</label>
+              <input
+                type="date"
+                name="birth_date"
+                required
+                className="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-brand transition-all"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Rua</label>
+              <input
+                type="text"
+                name="street"
+                required
+                className="w-full border-2 border-slate-100 rounded-2xl p-4 text-slate-900 outline-none focus:border-brand transition-all"
+              />
+            </div>
+            <div>
               <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Bairro</label>
               <input
                 type="text"
@@ -177,6 +198,10 @@ export default function RegistrationForm({ schedule, onDone }: RegistrationFormP
               <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
                 <input type="checkbox" name="is_medium" value="1" className="w-5 h-5 accent-brand mr-3" />
                 <span className="text-sm font-bold text-slate-700">Sou Médium</span>
+              </label>
+              <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                <input type="checkbox" name="already_student" value="1" className="w-5 h-5 accent-brand mr-3" />
+                <span className="text-sm font-bold text-slate-700">Já é aluno</span>
               </label>
               <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
                 <input type="checkbox" name="is_tule_member" value="1" className="w-5 h-5 accent-brand mr-3" />

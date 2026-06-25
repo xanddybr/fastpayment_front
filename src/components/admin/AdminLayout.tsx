@@ -12,7 +12,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'inicio', label: 'Início' },
   { id: 'agenda', label: 'Agenda' },
   { id: 'inscricoes', label: 'Inscrições' },
-  { id: 'configuracao', label: 'Configuração' },
+  { id: 'configuracao', label: 'Configurações' },
 ];
 
 export default function AdminLayout() {

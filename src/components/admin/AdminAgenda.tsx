@@ -14,26 +14,30 @@ import CrudModal from './CrudModal';
 
 const emptyForm = {
   scheduledAt: '',
-  duration: '',
-  durationUnit: 'min' as DurationUnit,
+  endTime: '',
   eventId: '',
   typeId: '',
   unitId: '',
   vacancies: '',
 };
 
-type DurationUnit = 'min' | 'h' | 'd';
+// scheduledAt carries the start date+time; endTime is just a time-of-day on that same date.
+const computeEndTimeField = (scheduledAt: string, durationMinutes: number): string => {
+  if (!scheduledAt) return '';
+  const start = new Date(scheduledAt);
+  const end = new Date(start.getTime() + durationMinutes * 60000);
+  return `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+};
 
-const MINUTES_PER_UNIT: Record<DurationUnit, number> = { min: 1, h: 60, d: 1440 };
-
-const splitDurationMinutes = (minutes: number): { duration: string; durationUnit: DurationUnit } => {
-  if (minutes > 0 && minutes % MINUTES_PER_UNIT.d === 0) {
-    return { duration: String(minutes / MINUTES_PER_UNIT.d), durationUnit: 'd' };
-  }
-  if (minutes > 0 && minutes % MINUTES_PER_UNIT.h === 0) {
-    return { duration: String(minutes / MINUTES_PER_UNIT.h), durationUnit: 'h' };
-  }
-  return { duration: String(minutes || ''), durationUnit: 'min' };
+const computeDurationMinutes = (scheduledAt: string, endTime: string): number => {
+  if (!scheduledAt || !endTime) return 0;
+  const start = new Date(scheduledAt);
+  const [endHours, endMinutes] = endTime.split(':').map((part) => parseInt(part, 10) || 0);
+  const end = new Date(start);
+  end.setHours(endHours, endMinutes, 0, 0);
+  let diffMinutes = (end.getTime() - start.getTime()) / 60000;
+  if (diffMinutes <= 0) diffMinutes += 24 * 60; // end time crosses midnight
+  return diffMinutes;
 };
 
 export default function AdminAgenda() {
@@ -85,11 +89,10 @@ export default function AdminAgenda() {
   };
 
   const handleEdit = (item: Schedule) => {
-    const { duration, durationUnit } = splitDurationMinutes(parseInt(String(item.duration_minutes ?? ''), 10) || 0);
+    const scheduledAt = (item.scheduled_at ?? '').replace(' ', 'T').slice(0, 16);
     setForm({
-      scheduledAt: (item.scheduled_at ?? '').replace(' ', 'T').slice(0, 16),
-      duration,
-      durationUnit,
+      scheduledAt,
+      endTime: computeEndTimeField(scheduledAt, parseInt(String(item.duration_minutes ?? ''), 10) || 0),
       eventId: String(item.event_id),
       typeId: String(item.event_type_id),
       unitId: String(item.unit_id),
@@ -113,7 +116,7 @@ export default function AdminAgenda() {
       unit_id: parseInt(form.unitId, 10),
       event_type_id: parseInt(form.typeId, 10),
       vacancies: parseInt(form.vacancies, 10) || 0,
-      duration_minutes: (parseInt(form.duration, 10) || 0) * MINUTES_PER_UNIT[form.durationUnit],
+      duration_minutes: computeDurationMinutes(form.scheduledAt, form.endTime),
       status: 'available',
     };
 
@@ -292,27 +295,14 @@ export default function AdminAgenda() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Duração</label>
-                <div className="flex gap-1">
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    placeholder="Duração"
-                    value={form.duration}
-                    onChange={(e) => setForm({ ...form, duration: e.target.value })}
-                    className="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-brand text-center"
-                  />
-                  <select
-                    value={form.durationUnit}
-                    onChange={(e) => setForm({ ...form, durationUnit: e.target.value as DurationUnit })}
-                    className="border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-brand bg-white"
-                  >
-                    <option value="min">min</option>
-                    <option value="h">horas</option>
-                    <option value="d">dias</option>
-                  </select>
-                </div>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Hora Fim</label>
+                <input
+                  type="time"
+                  required
+                  value={form.endTime}
+                  onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl p-2 text-sm outline-none focus:ring-2 focus:ring-brand text-center"
+                />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-tighter">Vagas</label>
