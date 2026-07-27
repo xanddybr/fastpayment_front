@@ -101,7 +101,7 @@ export default function ScheduleList({ onSelect }: ScheduleListProps) {
   return (
     <section className="space-y-8">
       <header className="text-center mb-10">
-        <h1 className="text-4xl font-black text-white">Agenda Teste 2026</h1>{APP_VERSION}
+        <h1 className="text-4xl font-black text-white">AGENDA TESTE</h1>{APP_VERSION}
         <p className="text-slate-500 mt-2 text-lg">Selecione o evento desejado!</p>
         <a
           href="/login"
