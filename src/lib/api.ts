@@ -11,7 +11,7 @@ import type {
 export const API_BASE_URL =
   window.location.hostname === 'localhost' ? 'http://localhost:8080' : `https://${window.location.hostname}`;
 
-export const APP_VERSION = '1.0.0beta';
+export const APP_VERSION = '2.0.0beta';
 
 // REQ: 401 outside /api/auth/* means the admin session expired — bounce to login.
 export const safeFetch = async (url: string, options: RequestInit = {}) => {
