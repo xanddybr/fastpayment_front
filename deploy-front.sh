@@ -20,4 +20,4 @@ rsync -avz --delete \
   dist/ "${SSH_TARGET}:${REMOTE_PATH}/"
 
 echo ""
-echo "  Frontend: https://agendabeta.misturadeluz.com"
+echo "  Frontend: https://agenda.misturadeluz.com"
