@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { cleanupExpiredSchedules, fetchSchedules } from '../../lib/api';
 import { formatScheduleWindow, getDayName } from '../../lib/format';
 import type { Schedule } from '../../lib/types';
+import {APP_VERSION} from "../../lib/api";
+
+const appVersion = APP_VERSION
 
 interface ScheduleCardProps {
   item: Schedule;
@@ -96,11 +99,12 @@ export default function ScheduleList({ onSelect }: ScheduleListProps) {
     }
     onSelect(item);
   };
+  
 
   return (
     <section className="space-y-8">
       <header className="text-center mb-10">
-        <h1 className="text-4xl font-black text-white">Agenda Teste 2026</h1>
+        <h1 className="text-4xl font-black text-white">Agenda Mistura de Luz 2026 </h1>{appVersion}
         <p className="text-slate-500 mt-2 text-lg">Selecione o evento desejado!</p>
         <a
           href="/login"

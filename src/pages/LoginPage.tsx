@@ -42,7 +42,7 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <img src="/images/logo.png" alt="Logo" className="h-32 w-auto object-contain" />
           </div>
-          <p className="text-slate-500 mt-2 italic">Acesso ao Gerenciamento da agenda de TESTES!</p>
+          <p className="text-slate-500 mt-2 italic">Acesso á area restrita da agenda</p>
         </div>
         <div className="space-y-4">
           <input
