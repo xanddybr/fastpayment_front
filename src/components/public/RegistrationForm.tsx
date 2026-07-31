@@ -71,6 +71,11 @@ export default function RegistrationForm({ schedule, onDone }: RegistrationFormP
     }
   };
 
+  const [selected, setSelected] = useState(null);
+    const handleToggle = (option: any) => {
+    selected === option ? setSelected(null) : setSelected(option);
+    };
+
   return (
     <section className="max-w-3xl mx-auto space-y-8 pb-20">
       <div className="text-center mb-8">
@@ -184,7 +189,6 @@ export default function RegistrationForm({ schedule, onDone }: RegistrationFormP
             </div>
           </div>
         </div>
-
         <div className="bg-surface-light p-6 sm:p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
           <div className="flex items-center gap-3 mb-6">
             <span className="w-8 h-8 bg-brand text-white rounded-full flex items-center justify-center text-sm font-bold">
@@ -192,28 +196,27 @@ export default function RegistrationForm({ schedule, onDone }: RegistrationFormP
             </span>
             <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Anamnesis</h3>
           </div>
-
           <div className="space-y-6 text-slate-900">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                <input type="checkbox" name="first_time" value="1" className="w-5 h-5 accent-brand mr-3" disabled={selected === 'already_student'} checked={selected === 'first_time'} onChange={() => handleToggle('first_time')}/>
+                <span className="text-sm font-bold text-slate-700">Minha primeira vez</span>
+              </label>
+              <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
+                <input type="checkbox" name="already_student" value="1" className="w-5 h-5 accent-brand mr-3" disabled={selected === 'first_time'} checked={selected === 'already_student'} onChange={() => handleToggle('already_student')} />
+                <span className="text-sm font-bold text-slate-700">Já sou aluno</span>
+              </label>
               <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
                 <input type="checkbox" name="is_medium" value="1" className="w-5 h-5 accent-brand mr-3" />
                 <span className="text-sm font-bold text-slate-700">Sou Médium</span>
-              </label>
-              <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
-                <input type="checkbox" name="already_student" value="1" className="w-5 h-5 accent-brand mr-3" />
-                <span className="text-sm font-bold text-slate-700">Já é aluno</span>
               </label>
               <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
                 <input type="checkbox" name="is_tule_member" value="1" className="w-5 h-5 accent-brand mr-3" />
                 <span className="text-sm font-bold text-slate-700">Membro TULE</span>
               </label>
               <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
-                <input type="checkbox" name="first_time" value="1" className="w-5 h-5 accent-brand mr-3" />
-                <span className="text-sm font-bold text-slate-700">Minha primeira vez</span>
-              </label>
-              <label className="flex items-center p-4 border-2 border-slate-50 rounded-2xl hover:bg-slate-50 cursor-pointer transition-all">
                 <select name="religion_mention" defaultValue="não informado" className="accent-brand mr-3 w-full bg-transparent">
-                  <option value="não informado">Como me identifico como ? </option>
+                  <option value="não informado">Como me identifico?</option>
                   <option value="Agnóstico">Agnóstico</option>
                   <option value="Cético">Cético</option>
                   <option value="Ateu">Ateu</option>
